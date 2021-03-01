@@ -1,0 +1,1276 @@
+---
+title: "Lake Okeechobee WBID Evaluation"
+output: 
+  html_document:
+    toc: yes
+    includes:
+      after_body: footer.html
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+CurWY=2020
+
+## Libraries
+#devtools::install_github("SwampThingPaul/AnalystHelper")
+library(AnalystHelper);
+library(plyr)
+library(reshape)
+library(zoo)
+
+# GIS libraries 
+library(rgdal)
+library(rgeos)
+library(raster)
+library(tmap)
+
+library(magrittr)
+library(flextable)
+
+## Paths
+wd="C:/Julian_LaCie/_Github/LakeO_WQ"
+
+paths=paste0(wd,c("/Plots/","/Export/","/Data/","/src/"))
+# Folder.Maker(paths);#One and done. Creates folders in working directory.
+plot.path=paths[1]
+export.path=paths[2]
+data.path=paths[3]
+
+GIS.path="C:/Julian_LaCie/_GISData"
+
+nad83.pro=CRS(SRS_string="EPSG:4269")
+utm17=CRS(SRS_string="EPSG:26917")
+
+tmap_mode("view")
+# GIS ---------------------------------------------------------------------
+wmd.mon=spTransform(readOGR(paste0(GIS.path,"/SFWMD_Monitoring_20210119"),"DBHYDRO_SITE_STATION"),utm17)
+wq.mon=subset(wmd.mon,ACTIVITY_S=="Surface Water Grab")
+wbid=spTransform(readOGR(paste0(GIS.path,"/FDEP"),"WBIDs"),utm17)
+
+wbid.lakeO=subset(wbid,WBID%in%paste0("3212",LETTERS[1:9]))
+
+wq.sites=data.frame(Station.ID=c("KISSR0.0","LZ2","L001","FEBIN","MBOXSOU","MH16000",
+                        "MH24000","MH32000","OISLAND","TIN13700","TIN16100",
+                        "POLESOUT","FEBOUT","L008","L005","L004","PALMOUT",
+                        "LZ30","L006","LZ40","CLV10A","L007","POLE3S","RITTAE2",
+                        "PELBAY3","LZ25A"),
+           WBID=c(rep("3212A",2),"3212B",rep("3212C",6),rep("3212D",6),"3212E",
+                  rep("3212F",2),rep("3212G",3),rep("3212H",3),rep("3212I",2)))
+wq.mon=subset(wq.mon,STATION%in%wq.sites$Station.ID)
+
+```
+
+
+Updated: `r paste(format(Sys.Date(),"%B %d, %Y"))`
+
+***
+
+Data used in this analysis was retrieved from the South Florida Water Management District online environmental database ([DBHYDRO](https://www.sfwmd.gov/dbhydro){target="_blank"}). (Site list can be downloaded here (as `.xlsx`) :
+
+
+```{r,echo=F,warning=FALSE,message=FALSE}
+library(downloadthis)
+
+wq.sites%>%
+  download_this(
+    output_name = "SiteList",
+    output_extension = ".xlsx",
+    button_label = "Download dataset as .xlsx",
+    button_type = "primary",
+    has_icon = TRUE,
+    icon = "fa fa-file-excel"
+  )
+
+```
+
+### [`r paste(fontawesome::fa("github"),"Source Code")`](https://github.com/owper-tech/LakeO_WQ){target="_blank"}
+
+* GitHub repo [https://github.com/owper-tech/LakeO_WQ](https://github.com/owper-tech/LakeO_WQ){target="_blank"}
+
+***
+
+### Study Area
+
+```{r map, out.width="100%",fig.align='center', echo=FALSE,warning=FALSE, message=FALSE}
+tm_basemap(leaflet::providers$Esri.WorldImagery,alpha=0.9)+
+tm_shape(wbid.lakeO,name="Lake Okeechobee WBIDs")+tm_polygons(col="grey",alpha=0.25,border.col = "indianred1",popup.vars=c("WBID"="WBID"),id="WBID")+
+  tm_shape(wq.mon,name="Monitoring Locations")+tm_dots(col="dodgerblue1",alpha=0.5,size=0.1,id="STATION")+tm_text("STATION",col="white",fontface=3,ymod=0.1)
+
+```
+
+<a name="Fig1"></a>
+Figure 1. Lake Okeechobee Water Body IDs (WBIDs) and monitoring locations sampled by the South Florida Water Management District.
+
+### Data
+
+Alkalinity, Color, Chlorophyll-a, Total Phosphorus and Total Nitrogen (direct measure or calculated NO~x~ + TKN) data data were retrieved from the South Florida Water Management District online environmental database ([DBHYDRO](https://www.sfwmd.gov/dbhydro){target="_blank"}) from monitoring locations ([Fig 1](#Fig1)) between May 1, 2000 and April 30, `r paste(CurWY)`. Data reported less than the minimum detection limit (MDL) where set to one-half the MDL. Annual geometric mean concentrations for all parameters and stations were calculated for stations and parameters with greater than or equal to four samples per water year and atleast one sample in the wet (May - October) and Dry (November - April). Annual geometric mean concentrations were averaged across water body identification (WBID) segments and evaluated relative to the numeric interpretations of narrative nutrient criteria presented below. For purposes of this analysis long-term is identified as a 3-year period.
+
+<br>
+
+***
+
+####  62-302.531 FAC Numeric Interpretations of Narrative Nutrient Criteria.
+
+Full details associated with the Numeric Interpretation of Narrative Nutrient Criteria can be found [here](https://www.flrules.org/gateway/ruleno.asp?id=62-302.531){target="_blank"}.
+
+**62-302.531(2)(b)1 FAC**
+
+For lakes, the applicable numeric interpretations of the narrative nutrient criterion in paragraph 62-302.530(47)(b), F.A.C., for chlorophyll a are shown in the table below. The applicable interpretations for TN and TP will vary on an annual basis, depending on the availability of chlorophyll a data and the concentrations of nutrients and chlorophyll a in the lake, as described below. The applicable numeric interpretations for TN, TP, and chlorophyll a shall not be exceeded more than once in any consecutive three year period.
+    
+
+```{r,echo=F}
+nnc.tab=data.frame(LTGM_alkcol=c("\u2265 40 Platinum Cobalt Units","\u2264 40 Platinum Cobalt Units and \u2265 20 mg/L CaCO\u2083","\u2264 40 Platinum Cobalt Units and \u2264 20 mg/L CaCO\u2083"),AnnChl=c(20,20,6),min.TP=c(0.05,0.03,0.01),min.TN=c(1.27,1.05,0.51),max.TP=c(0.16,0.09,0.03),max.TN=c(2.23,1.91,0.93))
+
+nnc.tab%>%
+  flextable()%>%
+  align(j=1:2,align="left",part="all")%>%
+  align(j=3:6,align="center",part="all")%>%
+  add_header(LTGM_alkcol=NA,AnnChl=NA,min.TP="Minimum calculated numeric\ninterpretation",
+             min.TN="Minimum calculated numeric\ninterpretation",
+             max.TP="Maximum calculated numeric\ninterpretation",
+             max.TN="Maximum calculated numeric\ninterpretation")%>%
+  merge_h(part="header")%>%
+  set_header_labels("LTGM_alkcol"="Long Term Geometric Mean\nLake Color and Alkalinity",
+                    "AnnChl"="Annual\nGeometric Mean Chlorophyll-a\n(\u03BCg L\u207B\u00B9)",
+                    "min.TP"="Annual\nGeometric Mean Total\nPhosphorus\n(mg L\u207B\u00B9)",
+                    "min.TN"="Annual\nGeometric Mean Total\nNitrogen\n(mg L\u207B\u00B9)",
+                    "max.TP"="Annual\nGeometric Mean Total\nPhosphorus\n(mg L\u207B\u00B9)",
+                    "max.TN"="Annual\nGeometric Mean Total\nNitrogen\n(mg L\u207B\u00B9)")%>%
+  width(width=c(2.25,1.5,1,1,1,1))%>%
+  set_caption(caption="62-302.531(2)(b)1b FAC. Lake-Specific Numeric Interpretations of the Narrative Nutrient Criterion.")
+
+```
+
+***
+
+### Water Quality Evaluation
+
+```{r,echo=F}
+wq.dat.GM=read.csv(paste0(export.path,"GM_data.csv"))
+
+wq.dat.GM.avg=cast(wq.dat.GM,WBID+WY~param,value="GM",mean,na.rm=T)
+wq.dat.GM.avg=merge(wq.dat.GM.avg,
+                    expand.grid(WBID=unique(wq.sites$WBID),WY=seq(2001,CurWY,1)),
+                    c("WBID","WY"),all.y=T)
+wq.dat.GM.avg=wq.dat.GM.avg[order(wq.dat.GM.avg$WBID,wq.dat.GM.avg$WY),]
+
+wq.dat.GM.avg$alk_3WYmean=with(wq.dat.GM.avg,ave(alk,WBID,FUN=function(x)c(rep(NA,2),rollmean(x,k=3))))
+wq.dat.GM.avg$col_3WYmean=with(wq.dat.GM.avg,ave(color,WBID,FUN=function(x)c(rep(NA,2),rollmean(x,k=3))))
+
+wq.dat.GM.avg$Chla.ann.exceed=with(wq.dat.GM.avg,ifelse(Chla>ifelse(alk>=20,20,6),1,0))
+wq.dat.GM.avg$Chla_1_3=with(wq.dat.GM.avg,ave(Chla.ann.exceed,WBID,FUN=function(x) ifelse(c(rep(NA,2),rollsum(x,k=3))>=3,1,0)))
+
+wq.dat.GM.avg$TP.lim=with(wq.dat.GM.avg,ifelse(color>=40&Chla.ann.exceed==1,0.05,
+                                               ifelse(color>=40&Chla.ann.exceed==0,0.16,
+                                               ifelse(color<=40&alk>=20&Chla.ann.exceed==1,0.03,
+                                                      ifelse(color<=40&alk>=20&Chla.ann.exceed==0,0.09,
+                                                             ifelse(color<=40&alk<=20&Chla.ann.exceed==1,0.01,
+                                                                    ifelse(color<=40&alk<=20&Chla.ann.exceed==0,0.03,NA)))))))
+wq.dat.GM.avg$TN.lim=with(wq.dat.GM.avg,ifelse(color>=40&Chla.ann.exceed==1,1.27,
+                                               ifelse(color>=40&Chla.ann.exceed==0,2.23,
+                                                      ifelse(color<=40&alk>=20&Chla.ann.exceed==1,1.05,
+                                                             ifelse(color<=40&alk>=20&Chla.ann.exceed==0,1.91,
+                                                                    ifelse(color<=40&alk<=20&Chla.ann.exceed==1,0.51,
+                                                                           ifelse(color<=40&alk<=20&Chla.ann.exceed==0,0.93,NA)))))))
+wq.dat.GM.avg$TP.ann.exceed=with(wq.dat.GM.avg,ifelse(TP>TP.lim,1,0))
+wq.dat.GM.avg$TP_1_3=with(wq.dat.GM.avg,ave(TP.ann.exceed,WBID,FUN=function(x) ifelse(c(rep(NA,2),rollsum(x,k=3))>=3,1,0)))
+wq.dat.GM.avg$TN.ann.exceed=with(wq.dat.GM.avg,ifelse(TN>TN.lim,1,0))
+wq.dat.GM.avg$TN_1_3=with(wq.dat.GM.avg,ave(TN.ann.exceed,WBID,FUN=function(x) ifelse(c(rep(NA,2),rollsum(x,k=3))>=3,1,0)))
+
+
+WBIDs.val=paste0("3212",LETTERS[1:9])
+cols=adjustcolor(c("indianred1","dodgerblue1","forestgreen","orange1","yellow3","azure"),0.5)
+
+ vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
+```
+
+#### {.tabset .tabset-fade}
+
+```{r ,results='asis',echo=FALSE,fig.width=5,fig.height=6,fig.align='center'}
+i=1
+  
+  cat('\n')
+  cat("#####",WBIDs.val[i],"\n")
+
+  tmp=subset(wq.dat.GM,WBID==WBIDs.val[i])
+  par(family="serif",mar=c(1,3,0.5,1),oma=c(2.5,3,0.75,0.25));
+  layout(matrix(1:5,5,1,byrow=F))
+
+  xlim.val=c(2001,2020);by.x=5;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/by.x)
+  
+  ylim.val=c(0,200);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(tmp,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="alk"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=20,col="Red")
+  axis_fun(1,xmaj,xmin,NA)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Alkalinity\n(mg L\u207B\u00B9)")
+  mtext(side=3,adj=0,paste("WBID:",WBIDs.val[i]))
+  legend("topleft",legend=subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,
+         pch=c(21),lty=0,lwd=0.1,
+         col=adjustcolor("black",0.5),pt.bg=cols,
+         pt.cex=1.5,ncol=3,cex=0.8,bty="n",y.intersp=1,x.intersp=0.75,xpd=NA,xjust=0.5,yjust=0.5)
+  
+  ylim.val=c(0,150);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="color"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=40,col="Red")
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Color\n(PCU)")
+  
+  ylim.val=c(0,50);by.y=10;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="Chla"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Chl-a\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,0.250);by.y=0.1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TP"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj*1000);box(lwd=1)
+  mtext(side=2,line=2.5,"TP\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,3);by.y=1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TN"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"TN\n(mg L\u207B\u00B9)")
+  mtext(side=1,line=2,"Water Year")
+ 
+   cat("<center>Annual Geometric Mean concentration for Alkalinity, Color, Chlorophyll, Total Phosphorus and Total Nitrogen\n.</center>") 
+```
+
+<br>
+
+```{r ,echo=FALSE}
+tmp=subset(wq.dat.GM.avg,WBID==WBIDs.val[i])
+tmp[,vars]%>%
+  flextable(col_keys=vars[1:7])%>%
+  colformat_num(j=3:5,digits=0)%>%
+  colformat_num(j=6:7,digits=2)%>%
+  bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  align(j=3:7,align="center",part="all")%>%
+  set_header_labels("alk"="Alkalinity\n(mg L\u207B\u00B9)",
+                    "color"="Color\n(PCU)",
+                    "Chla"="Chlorophyll-a\n(\u03BCg L\u207B\u00B9)",
+                    "TP"="Total Phosphorus\n(mg L\u207B\u00B9)",
+                    "TN"="Total Nitrogen\n(mg L\u207B\u00B9)")%>%
+  width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
+  footnote(j=1,i=1,part="header",
+           value=as_paragraph(paste("Includes Stations:",
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+  set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
+```
+
+```{r,echo=F,warning=FALSE,message=FALSE}
+tmp[vars[1:7]]%>%
+  download_this(
+    output_name = "AnnualGM_Data",
+    output_extension = ".xlsx",
+    button_label = "Download dataset as .xlsx",
+    button_type = "primary",
+    has_icon = TRUE,
+    icon = "fa fa-file-excel"
+  )
+
+```
+
+
+```{r ,results='asis',echo=FALSE,fig.width=5,fig.height=6,fig.align='center'}
+i=2
+  
+  cat('\n')
+  cat("#####",WBIDs.val[i],"\n")
+
+  tmp=subset(wq.dat.GM,WBID==WBIDs.val[i])
+  par(family="serif",mar=c(1,3,0.5,1),oma=c(2.5,3,0.75,0.25));
+  layout(matrix(1:5,5,1,byrow=F))
+
+  xlim.val=c(2001,2020);by.x=5;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/by.x)
+  
+  ylim.val=c(0,200);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(tmp,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="alk"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=20,col="Red")
+  axis_fun(1,xmaj,xmin,NA)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Alkalinity\n(mg L\u207B\u00B9)")
+  mtext(side=3,adj=0,paste("WBID:",WBIDs.val[i]))
+  legend("topleft",legend=subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,
+         pch=c(21),lty=0,lwd=0.1,
+         col=adjustcolor("black",0.5),pt.bg=cols,
+         pt.cex=1.5,ncol=3,cex=0.8,bty="n",y.intersp=1,x.intersp=0.75,xpd=NA,xjust=0.5,yjust=0.5)
+  
+  ylim.val=c(0,150);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="color"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=40,col="Red")
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Color\n(PCU)")
+  
+  ylim.val=c(0,50);by.y=10;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="Chla"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Chl-a\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,0.250);by.y=0.1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TP"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj*1000);box(lwd=1)
+  mtext(side=2,line=2.5,"TP\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,3);by.y=1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TN"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"TN\n(mg L\u207B\u00B9)")
+  mtext(side=1,line=2,"Water Year")
+ 
+   cat("<center>Annual Geometric Mean concentration for Alkalinity, Color, Chlorophyll, Total Phosphorus and Total Nitrogen\n.</center>") 
+```
+
+<br>
+
+```{r ,echo=FALSE}
+
+    tmp=subset(wq.dat.GM.avg,WBID==WBIDs.val[i])
+
+ vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
+tmp[,vars]%>%
+  flextable(col_keys=vars[1:7])%>%
+  colformat_num(j=3:5,digits=0)%>%
+  colformat_num(j=6:7,digits=2)%>%
+  bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  align(j=3:7,align="center",part="all")%>%
+  set_header_labels("alk"="Alkalinity\n(mg L\u207B\u00B9)",
+                    "color"="Color\n(PCU)",
+                    "Chla"="Chlorophyll-a\n(\u03BCg L\u207B\u00B9)",
+                    "TP"="Total Phosphorus\n(mg L\u207B\u00B9)",
+                    "TN"="Total Nitrogen\n(mg L\u207B\u00B9)")%>%
+  width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
+  footnote(j=1,i=1,part="header",
+           value=as_paragraph(paste("Includes Stations:",
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+  set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
+```
+
+```{r,echo=F,warning=FALSE,message=FALSE}
+tmp[vars[1:7]]%>%
+  download_this(
+    output_name = "AnnualGM_Data",
+    output_extension = ".xlsx",
+    button_label = "Download dataset as .xlsx",
+    button_type = "primary",
+    has_icon = TRUE,
+    icon = "fa fa-file-excel"
+  )
+
+```
+
+```{r ,results='asis',echo=FALSE,fig.width=5,fig.height=6,fig.align='center'}
+i=3
+  
+  cat('\n')
+  cat("#####",WBIDs.val[i],"\n")
+
+  tmp=subset(wq.dat.GM,WBID==WBIDs.val[i])
+  par(family="serif",mar=c(1,3,0.5,1),oma=c(2.5,3,0.75,0.25));
+  layout(matrix(1:5,5,1,byrow=F))
+
+  xlim.val=c(2001,2020);by.x=5;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/by.x)
+  
+  ylim.val=c(0,200);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(tmp,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="alk"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=20,col="Red")
+  axis_fun(1,xmaj,xmin,NA)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Alkalinity\n(mg L\u207B\u00B9)")
+  mtext(side=3,adj=0,paste("WBID:",WBIDs.val[i]))
+  legend("topleft",legend=subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,
+         pch=c(21),lty=0,lwd=0.1,
+         col=adjustcolor("black",0.5),pt.bg=cols,
+         pt.cex=1.5,ncol=3,cex=0.8,bty="n",y.intersp=1,x.intersp=0.75,xpd=NA,xjust=0.5,yjust=0.5)
+  
+  ylim.val=c(0,150);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="color"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=40,col="Red")
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Color\n(PCU)")
+  
+  ylim.val=c(0,50);by.y=10;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="Chla"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Chl-a\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,0.250);by.y=0.1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TP"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj*1000);box(lwd=1)
+  mtext(side=2,line=2.5,"TP\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,3);by.y=1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TN"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"TN\n(mg L\u207B\u00B9)")
+  mtext(side=1,line=2,"Water Year")
+ 
+   cat("<center>Annual Geometric Mean concentration for Alkalinity, Color, Chlorophyll, Total Phosphorus and Total Nitrogen\n.</center>") 
+```
+
+<br>
+
+```{r ,echo=FALSE}
+
+    tmp=subset(wq.dat.GM.avg,WBID==WBIDs.val[i])
+
+ vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
+tmp[,vars]%>%
+  flextable(col_keys=vars[1:7])%>%
+  colformat_num(j=3:5,digits=0)%>%
+  colformat_num(j=6:7,digits=2)%>%
+  bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  align(j=3:7,align="center",part="all")%>%
+  set_header_labels("alk"="Alkalinity\n(mg L\u207B\u00B9)",
+                    "color"="Color\n(PCU)",
+                    "Chla"="Chlorophyll-a\n(\u03BCg L\u207B\u00B9)",
+                    "TP"="Total Phosphorus\n(mg L\u207B\u00B9)",
+                    "TN"="Total Nitrogen\n(mg L\u207B\u00B9)")%>%
+  width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
+  footnote(j=1,i=1,part="header",
+           value=as_paragraph(paste("Includes Stations:",
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+  set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
+```
+
+```{r,echo=F,warning=FALSE,message=FALSE}
+tmp[vars[1:7]]%>%
+  download_this(
+    output_name = "AnnualGM_Data",
+    output_extension = ".xlsx",
+    button_label = "Download dataset as .xlsx",
+    button_type = "primary",
+    has_icon = TRUE,
+    icon = "fa fa-file-excel"
+  )
+
+```
+
+```{r ,results='asis',echo=FALSE,fig.width=5,fig.height=6,fig.align='center'}
+i=4
+  
+  cat('\n')
+  cat("#####",WBIDs.val[i],"\n")
+
+  tmp=subset(wq.dat.GM,WBID==WBIDs.val[i])
+  par(family="serif",mar=c(1,3,0.5,1),oma=c(2.5,3,0.75,0.25));
+  layout(matrix(1:5,5,1,byrow=F))
+
+  xlim.val=c(2001,2020);by.x=5;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/by.x)
+  
+  ylim.val=c(0,200);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(tmp,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="alk"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=20,col="Red")
+  axis_fun(1,xmaj,xmin,NA)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Alkalinity\n(mg L\u207B\u00B9)")
+  mtext(side=3,adj=0,paste("WBID:",WBIDs.val[i]))
+  legend("topleft",legend=subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,
+         pch=c(21),lty=0,lwd=0.1,
+         col=adjustcolor("black",0.5),pt.bg=cols,
+         pt.cex=1.5,ncol=3,cex=0.8,bty="n",y.intersp=1,x.intersp=0.75,xpd=NA,xjust=0.5,yjust=0.5)
+  
+  ylim.val=c(0,150);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="color"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=40,col="Red")
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Color\n(PCU)")
+  
+  ylim.val=c(0,50);by.y=10;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="Chla"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Chl-a\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,0.250);by.y=0.1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TP"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj*1000);box(lwd=1)
+  mtext(side=2,line=2.5,"TP\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,3);by.y=1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TN"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"TN\n(mg L\u207B\u00B9)")
+  mtext(side=1,line=2,"Water Year")
+ 
+   cat("<center>Annual Geometric Mean concentration for Alkalinity, Color, Chlorophyll, Total Phosphorus and Total Nitrogen\n.</center>") 
+```
+
+<br>
+
+```{r ,echo=FALSE}
+
+    tmp=subset(wq.dat.GM.avg,WBID==WBIDs.val[i])
+
+ vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
+tmp[,vars]%>%
+  flextable(col_keys=vars[1:7])%>%
+  colformat_num(j=3:5,digits=0)%>%
+  colformat_num(j=6:7,digits=2)%>%
+  bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  align(j=3:7,align="center",part="all")%>%
+  set_header_labels("alk"="Alkalinity\n(mg L\u207B\u00B9)",
+                    "color"="Color\n(PCU)",
+                    "Chla"="Chlorophyll-a\n(\u03BCg L\u207B\u00B9)",
+                    "TP"="Total Phosphorus\n(mg L\u207B\u00B9)",
+                    "TN"="Total Nitrogen\n(mg L\u207B\u00B9)")%>%
+  width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
+  footnote(j=1,i=1,part="header",
+           value=as_paragraph(paste("Includes Stations:",
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+  set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
+```
+
+```{r,echo=F,warning=FALSE,message=FALSE}
+tmp[vars[1:7]]%>%
+  download_this(
+    output_name = "AnnualGM_Data",
+    output_extension = ".xlsx",
+    button_label = "Download dataset as .xlsx",
+    button_type = "primary",
+    has_icon = TRUE,
+    icon = "fa fa-file-excel"
+  )
+
+```
+
+```{r ,results='asis',echo=FALSE,fig.width=5,fig.height=6,fig.align='center'}
+i=5
+  
+  cat('\n')
+  cat("#####",WBIDs.val[i],"\n")
+
+  tmp=subset(wq.dat.GM,WBID==WBIDs.val[i])
+  par(family="serif",mar=c(1,3,0.5,1),oma=c(2.5,3,0.75,0.25));
+  layout(matrix(1:5,5,1,byrow=F))
+
+  xlim.val=c(2001,2020);by.x=5;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/by.x)
+  
+  ylim.val=c(0,200);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(tmp,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="alk"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=20,col="Red")
+  axis_fun(1,xmaj,xmin,NA)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Alkalinity\n(mg L\u207B\u00B9)")
+  mtext(side=3,adj=0,paste("WBID:",WBIDs.val[i]))
+  legend("topleft",legend=subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,
+         pch=c(21),lty=0,lwd=0.1,
+         col=adjustcolor("black",0.5),pt.bg=cols,
+         pt.cex=1.5,ncol=3,cex=0.8,bty="n",y.intersp=1,x.intersp=0.75,xpd=NA,xjust=0.5,yjust=0.5)
+  
+  ylim.val=c(0,150);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="color"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=40,col="Red")
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Color\n(PCU)")
+  
+  ylim.val=c(0,50);by.y=10;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="Chla"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Chl-a\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,0.250);by.y=0.1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TP"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj*1000);box(lwd=1)
+  mtext(side=2,line=2.5,"TP\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,3);by.y=1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TN"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"TN\n(mg L\u207B\u00B9)")
+  mtext(side=1,line=2,"Water Year")
+ 
+   cat("<center>Annual Geometric Mean concentration for Alkalinity, Color, Chlorophyll, Total Phosphorus and Total Nitrogen\n.</center>") 
+```
+
+<br>
+
+```{r ,echo=FALSE}
+
+    tmp=subset(wq.dat.GM.avg,WBID==WBIDs.val[i])
+
+ vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
+tmp[,vars]%>%
+  flextable(col_keys=vars[1:7])%>%
+  colformat_num(j=3:5,digits=0)%>%
+  colformat_num(j=6:7,digits=2)%>%
+  bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  align(j=3:7,align="center",part="all")%>%
+  set_header_labels("alk"="Alkalinity\n(mg L\u207B\u00B9)",
+                    "color"="Color\n(PCU)",
+                    "Chla"="Chlorophyll-a\n(\u03BCg L\u207B\u00B9)",
+                    "TP"="Total Phosphorus\n(mg L\u207B\u00B9)",
+                    "TN"="Total Nitrogen\n(mg L\u207B\u00B9)")%>%
+  width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
+  footnote(j=1,i=1,part="header",
+           value=as_paragraph(paste("Includes Stations:",
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+  set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
+```
+
+```{r,echo=F,warning=FALSE,message=FALSE}
+tmp[vars[1:7]]%>%
+  download_this(
+    output_name = "AnnualGM_Data",
+    output_extension = ".xlsx",
+    button_label = "Download dataset as .xlsx",
+    button_type = "primary",
+    has_icon = TRUE,
+    icon = "fa fa-file-excel"
+  )
+
+```
+
+```{r ,results='asis',echo=FALSE,fig.width=5,fig.height=6,fig.align='center'}
+i=6
+  
+  cat('\n')
+  cat("#####",WBIDs.val[i],"\n")
+
+  tmp=subset(wq.dat.GM,WBID==WBIDs.val[i])
+  par(family="serif",mar=c(1,3,0.5,1),oma=c(2.5,3,0.75,0.25));
+  layout(matrix(1:5,5,1,byrow=F))
+
+  xlim.val=c(2001,2020);by.x=5;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/by.x)
+  
+  ylim.val=c(0,200);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(tmp,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="alk"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=20,col="Red")
+  axis_fun(1,xmaj,xmin,NA)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Alkalinity\n(mg L\u207B\u00B9)")
+  mtext(side=3,adj=0,paste("WBID:",WBIDs.val[i]))
+  legend("topleft",legend=subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,
+         pch=c(21),lty=0,lwd=0.1,
+         col=adjustcolor("black",0.5),pt.bg=cols,
+         pt.cex=1.5,ncol=3,cex=0.8,bty="n",y.intersp=1,x.intersp=0.75,xpd=NA,xjust=0.5,yjust=0.5)
+  
+  ylim.val=c(0,150);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="color"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=40,col="Red")
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Color\n(PCU)")
+  
+  ylim.val=c(0,50);by.y=10;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="Chla"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Chl-a\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,0.250);by.y=0.1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TP"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj*1000);box(lwd=1)
+  mtext(side=2,line=2.5,"TP\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,3);by.y=1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TN"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"TN\n(mg L\u207B\u00B9)")
+  mtext(side=1,line=2,"Water Year")
+ 
+   cat("<center>Annual Geometric Mean concentration for Alkalinity, Color, Chlorophyll, Total Phosphorus and Total Nitrogen\n.</center>") 
+```
+
+<br>
+
+```{r ,echo=FALSE}
+
+    tmp=subset(wq.dat.GM.avg,WBID==WBIDs.val[i])
+
+ vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
+tmp[,vars]%>%
+  flextable(col_keys=vars[1:7])%>%
+  colformat_num(j=3:5,digits=0)%>%
+  colformat_num(j=6:7,digits=2)%>%
+  bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  align(j=3:7,align="center",part="all")%>%
+  set_header_labels("alk"="Alkalinity\n(mg L\u207B\u00B9)",
+                    "color"="Color\n(PCU)",
+                    "Chla"="Chlorophyll-a\n(\u03BCg L\u207B\u00B9)",
+                    "TP"="Total Phosphorus\n(mg L\u207B\u00B9)",
+                    "TN"="Total Nitrogen\n(mg L\u207B\u00B9)")%>%
+  width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
+  footnote(j=1,i=1,part="header",
+           value=as_paragraph(paste("Includes Stations:",
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+  set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
+```
+
+```{r,echo=F,warning=FALSE,message=FALSE}
+tmp[vars[1:7]]%>%
+  download_this(
+    output_name = "AnnualGM_Data",
+    output_extension = ".xlsx",
+    button_label = "Download dataset as .xlsx",
+    button_type = "primary",
+    has_icon = TRUE,
+    icon = "fa fa-file-excel"
+  )
+
+```
+
+```{r ,results='asis',echo=FALSE,fig.width=5,fig.height=6,fig.align='center'}
+i=7
+  
+  cat('\n')
+  cat("#####",WBIDs.val[i],"\n")
+
+  tmp=subset(wq.dat.GM,WBID==WBIDs.val[i])
+  par(family="serif",mar=c(1,3,0.5,1),oma=c(2.5,3,0.75,0.25));
+  layout(matrix(1:5,5,1,byrow=F))
+
+  xlim.val=c(2001,2020);by.x=5;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/by.x)
+  
+  ylim.val=c(0,200);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(tmp,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="alk"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=20,col="Red")
+  axis_fun(1,xmaj,xmin,NA)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Alkalinity\n(mg L\u207B\u00B9)")
+  mtext(side=3,adj=0,paste("WBID:",WBIDs.val[i]))
+  legend("topleft",legend=subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,
+         pch=c(21),lty=0,lwd=0.1,
+         col=adjustcolor("black",0.5),pt.bg=cols,
+         pt.cex=1.5,ncol=3,cex=0.8,bty="n",y.intersp=1,x.intersp=0.75,xpd=NA,xjust=0.5,yjust=0.5)
+  
+  ylim.val=c(0,150);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="color"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=40,col="Red")
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Color\n(PCU)")
+  
+  ylim.val=c(0,50);by.y=10;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="Chla"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Chl-a\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,0.250);by.y=0.1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TP"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj*1000);box(lwd=1)
+  mtext(side=2,line=2.5,"TP\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,3);by.y=1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TN"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"TN\n(mg L\u207B\u00B9)")
+  mtext(side=1,line=2,"Water Year")
+ 
+   cat("<center>Annual Geometric Mean concentration for Alkalinity, Color, Chlorophyll, Total Phosphorus and Total Nitrogen\n.</center>") 
+```
+
+<br>
+
+```{r ,echo=FALSE}
+
+    tmp=subset(wq.dat.GM.avg,WBID==WBIDs.val[i])
+
+ vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
+tmp[,vars]%>%
+  flextable(col_keys=vars[1:7])%>%
+  colformat_num(j=3:5,digits=0)%>%
+  colformat_num(j=6:7,digits=2)%>%
+  bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  align(j=3:7,align="center",part="all")%>%
+  set_header_labels("alk"="Alkalinity\n(mg L\u207B\u00B9)",
+                    "color"="Color\n(PCU)",
+                    "Chla"="Chlorophyll-a\n(\u03BCg L\u207B\u00B9)",
+                    "TP"="Total Phosphorus\n(mg L\u207B\u00B9)",
+                    "TN"="Total Nitrogen\n(mg L\u207B\u00B9)")%>%
+  width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
+  footnote(j=1,i=1,part="header",
+           value=as_paragraph(paste("Includes Stations:",
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+  set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
+```
+
+```{r,echo=F,warning=FALSE,message=FALSE}
+tmp[vars[1:7]]%>%
+  download_this(
+    output_name = "AnnualGM_Data",
+    output_extension = ".xlsx",
+    button_label = "Download dataset as .xlsx",
+    button_type = "primary",
+    has_icon = TRUE,
+    icon = "fa fa-file-excel"
+  )
+
+```
+
+```{r ,results='asis',echo=FALSE,fig.width=5,fig.height=6,fig.align='center'}
+i=8
+  
+  cat('\n')
+  cat("#####",WBIDs.val[i],"\n")
+
+  tmp=subset(wq.dat.GM,WBID==WBIDs.val[i])
+  par(family="serif",mar=c(1,3,0.5,1),oma=c(2.5,3,0.75,0.25));
+  layout(matrix(1:5,5,1,byrow=F))
+
+  xlim.val=c(2001,2020);by.x=5;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/by.x)
+  
+  ylim.val=c(0,200);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(tmp,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="alk"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=20,col="Red")
+  axis_fun(1,xmaj,xmin,NA)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Alkalinity\n(mg L\u207B\u00B9)")
+  mtext(side=3,adj=0,paste("WBID:",WBIDs.val[i]))
+  legend("topleft",legend=subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,
+         pch=c(21),lty=0,lwd=0.1,
+         col=adjustcolor("black",0.5),pt.bg=cols,
+         pt.cex=1.5,ncol=3,cex=0.8,bty="n",y.intersp=1,x.intersp=0.75,xpd=NA,xjust=0.5,yjust=0.5)
+  
+  ylim.val=c(0,150);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="color"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=40,col="Red")
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Color\n(PCU)")
+  
+  ylim.val=c(0,50);by.y=10;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="Chla"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Chl-a\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,0.250);by.y=0.1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TP"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj*1000);box(lwd=1)
+  mtext(side=2,line=2.5,"TP\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,3);by.y=1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TN"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"TN\n(mg L\u207B\u00B9)")
+  mtext(side=1,line=2,"Water Year")
+ 
+   cat("<center>Annual Geometric Mean concentration for Alkalinity, Color, Chlorophyll, Total Phosphorus and Total Nitrogen\n.</center>") 
+```
+
+<br>
+
+```{r ,echo=FALSE}
+
+    tmp=subset(wq.dat.GM.avg,WBID==WBIDs.val[i])
+
+ vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
+tmp[,vars]%>%
+  flextable(col_keys=vars[1:7])%>%
+  colformat_num(j=3:5,digits=0)%>%
+  colformat_num(j=6:7,digits=2)%>%
+  bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  align(j=3:7,align="center",part="all")%>%
+  set_header_labels("alk"="Alkalinity\n(mg L\u207B\u00B9)",
+                    "color"="Color\n(PCU)",
+                    "Chla"="Chlorophyll-a\n(\u03BCg L\u207B\u00B9)",
+                    "TP"="Total Phosphorus\n(mg L\u207B\u00B9)",
+                    "TN"="Total Nitrogen\n(mg L\u207B\u00B9)")%>%
+  width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
+  footnote(j=1,i=1,part="header",
+           value=as_paragraph(paste("Includes Stations:",
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+  set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
+```
+
+```{r,echo=F,warning=FALSE,message=FALSE}
+tmp[vars[1:7]]%>%
+  download_this(
+    output_name = "AnnualGM_Data",
+    output_extension = ".xlsx",
+    button_label = "Download dataset as .xlsx",
+    button_type = "primary",
+    has_icon = TRUE,
+    icon = "fa fa-file-excel"
+  )
+
+```
+
+```{r ,results='asis',echo=FALSE,fig.width=5,fig.height=6,fig.align='center'}
+i=9
+  
+  cat('\n')
+  cat("#####",WBIDs.val[i],"\n")
+
+  tmp=subset(wq.dat.GM,WBID==WBIDs.val[i])
+  par(family="serif",mar=c(1,3,0.5,1),oma=c(2.5,3,0.75,0.25));
+  layout(matrix(1:5,5,1,byrow=F))
+
+  xlim.val=c(2001,2020);by.x=5;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/by.x)
+  
+  ylim.val=c(0,200);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(tmp,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="alk"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=20,col="Red")
+  axis_fun(1,xmaj,xmin,NA)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Alkalinity\n(mg L\u207B\u00B9)")
+  mtext(side=3,adj=0,paste("WBID:",WBIDs.val[i]))
+  legend("topleft",legend=subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,
+         pch=c(21),lty=0,lwd=0.1,
+         col=adjustcolor("black",0.5),pt.bg=cols,
+         pt.cex=1.5,ncol=3,cex=0.8,bty="n",y.intersp=1,x.intersp=0.75,xpd=NA,xjust=0.5,yjust=0.5)
+  
+  ylim.val=c(0,150);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="color"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  abline(h=40,col="Red")
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Color\n(PCU)")
+  
+  ylim.val=c(0,50);by.y=10;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="Chla"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"Chl-a\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,0.250);by.y=0.1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TP"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  #axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(1,xmaj,xmin,NA,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj*1000);box(lwd=1)
+  mtext(side=2,line=2.5,"TP\n(\u03BCg L\u207B\u00B9)")
+  
+  ylim.val=c(0,3);by.y=1;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+  plot(GM~WY,wq.dat.GM,ylim=ylim.val,xlim=xlim.val,axes=F,ann=F,type="n")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:nrow(subset(wq.sites,WBID==WBIDs.val[i]))){
+    with(subset(wq.dat.GM,Station.ID==as.character(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID[j])&param=="TN"),
+         pt_line(WY,GM,2,cols[j],1,21,cols[j],pt.lwd=0.1,cex=1.25,pt.col=adjustcolor("black",0.5)))
+  }
+  axis_fun(1,xmaj,xmin,xmaj,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  mtext(side=2,line=2.5,"TN\n(mg L\u207B\u00B9)")
+  mtext(side=1,line=2,"Water Year")
+ 
+   cat("<center>Annual Geometric Mean concentration for Alkalinity, Color, Chlorophyll, Total Phosphorus and Total Nitrogen\n.</center>") 
+```
+
+<br>
+
+```{r ,echo=FALSE}
+
+    tmp=subset(wq.dat.GM.avg,WBID==WBIDs.val[i])
+
+ vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
+tmp[,vars]%>%
+  flextable(col_keys=vars[1:7])%>%
+  colformat_num(j=3:5,digits=0)%>%
+  colformat_num(j=6:7,digits=2)%>%
+  bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
+  align(j=3:7,align="center",part="all")%>%
+  set_header_labels("alk"="Alkalinity\n(mg L\u207B\u00B9)",
+                    "color"="Color\n(PCU)",
+                    "Chla"="Chlorophyll-a\n(\u03BCg L\u207B\u00B9)",
+                    "TP"="Total Phosphorus\n(mg L\u207B\u00B9)",
+                    "TN"="Total Nitrogen\n(mg L\u207B\u00B9)")%>%
+  width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
+  footnote(j=1,i=1,part="header",
+           value=as_paragraph(paste("Includes Stations:",
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+  set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
+```
+
+```{r,echo=F,warning=FALSE,message=FALSE}
+tmp[vars[1:7]]%>%
+  download_this(
+    output_name = "AnnualGM_Data",
+    output_extension = ".xlsx",
+    button_label = "Download dataset as .xlsx",
+    button_type = "primary",
+    has_icon = TRUE,
+    icon = "fa fa-file-excel"
+  )
+
+```
