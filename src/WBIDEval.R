@@ -168,9 +168,6 @@ tmp[,vars]%>%
            value=as_paragraph(paste("Includes Stations:",
                                     paste(subset(wq.sites,WBID=="3212H")$Station.ID,collapse=", "))))
            
-
-
-
 # png(filename=paste0(plot.path,"WBID3212H_WQ_WY.png"),width=6.5,height=5,units="in",res=200,type="windows",bg="white")
 # tiff(filename=paste0(plot.path,"WBID3212H_WQ_WY.tiff"),width=5,height=6,units="in",res=200,type="windows",compression=c("lzw"),bg="white")
 par(family="serif",mar=c(1,3,0.5,1),oma=c(2.5,3,0.75,0.25));
