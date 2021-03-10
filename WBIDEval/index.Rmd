@@ -53,11 +53,11 @@ wbid.lakeO=subset(wbid,WBID%in%paste0("3212",LETTERS[1:9]))
 
 wq.sites=data.frame(Station.ID=c("KISSR0.0","LZ2","L001","FEBIN","MBOXSOU","MH16000",
                         "MH24000","MH32000","OISLAND","TIN13700","TIN16100",
-                        "POLESOUT","FEBOUT","L008","L005","L004","PALMOUT",
+                        "POLESOUT","FEBOUT","L008","L005","L002","L003","L004","PALMOUT",
                         "LZ30","L006","LZ40","CLV10A","L007","POLE3S","RITTAE2",
-                        "PELBAY3","LZ25A"),
-           WBID=c(rep("3212A",2),"3212B",rep("3212C",6),rep("3212D",6),"3212E",
-                  rep("3212F",2),rep("3212G",3),rep("3212H",3),rep("3212I",2)))
+                        "PELBAY3","PELMID","LZ25A","LZ25"),
+           WBID=c(rep("3212A",2),"3212B",rep("3212C",6),rep("3212D",6),rep("3212E",3),
+                  rep("3212F",2),rep("3212G",3),rep("3212H",3),rep("3212I",4)))
 wq.mon=subset(wq.mon,STATION%in%wq.sites$Station.ID)
 
 ```

@@ -24,6 +24,11 @@ library(rgeos)
 library(raster)
 library(tmap)
 
+
+library(flextable)
+library(magrittr)
+
+
 ## Paths
 wd="C:/Julian_LaCie/_Github/LakeO_WQ"
 
@@ -58,9 +63,9 @@ wq.sites=data.frame(Station.ID=c("KISSR0.0","LZ2","L001","FEBIN","MBOXSOU","MH16
                         "MH24000","MH32000","OISLAND","TIN13700","TIN16100",
                         "POLESOUT","FEBOUT","L008","L005","L004","PALMOUT",
                         "LZ30","L006","LZ40","CLV10A","L007","POLE3S","RITTAE2",
-                        "PELBAY3","LZ25A"),
+                        "PELBAY3","PELMID","LZ25A","LZ25"),
            WBID=c(rep("3212A",2),"3212B",rep("3212C",6),rep("3212D",6),"3212E",
-                  rep("3212F",2),rep("3212G",3),rep("3212H",3),rep("3212I",2)))
+                  rep("3212F",2),rep("3212G",3),rep("3212H",3),rep("3212I",4)))
 # plot(subset(wq.mon,STATION%in%wq.sites$Station.ID),add=T)
 # wq.sites=subset(wq.sites,WBID=="3212H")
 
@@ -147,7 +152,7 @@ wq.dat.GM.avg$TN_1_3=with(wq.dat.GM.avg,ave(TN.ann.exceed,WBID,FUN=function(x) i
 subset(wq.dat.GM.avg,WBID=="3212H")
 subset(wq.dat.GM.avg,Chla_1_3>0)
 
-tmp=subset(wq.dat.GM.avg,WBID=="3212H")
+tmp=subset(wq.dat.GM.avg,WBID=="3212I")
 
 vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
 tmp[,vars]%>%
