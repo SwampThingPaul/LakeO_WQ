@@ -61,10 +61,10 @@ params=data.frame(Test.Number=c(18,21,80,20,25,61,179,13,67),
 
 wq.sites=data.frame(Station.ID=c("KISSR0.0","LZ2","L001","FEBIN","MBOXSOU","MH16000",
                         "MH24000","MH32000","OISLAND","TIN13700","TIN16100",
-                        "POLESOUT","FEBOUT","L008","L005","L004","PALMOUT",
+                        "POLESOUT","FEBOUT","L008","L005","L002","L003","L004","PALMOUT",
                         "LZ30","L006","LZ40","CLV10A","L007","POLE3S","RITTAE2",
                         "PELBAY3","PELMID","LZ25A","LZ25"),
-           WBID=c(rep("3212A",2),"3212B",rep("3212C",6),rep("3212D",6),"3212E",
+           WBID=c(rep("3212A",2),"3212B",rep("3212C",6),rep("3212D",6),rep("3212E",3),
                   rep("3212F",2),rep("3212G",3),rep("3212H",3),rep("3212I",4)))
 # plot(subset(wq.mon,STATION%in%wq.sites$Station.ID),add=T)
 # wq.sites=subset(wq.sites,WBID=="3212H")
@@ -121,7 +121,7 @@ wq.dat.GM=ddply(subset(wq.dat.xtab.melt,sea.screen==1),c("Station.ID","WBID","WY
 wq.dat.GM=merge(wq.dat.GM,expand.grid(Station.ID=wq.sites$Station.ID,
                                       WY=seq(2001,2020,1),
                                       param=c("alk", "Chla", "color","TN", "TP")),all.y=T)
-# write.csv(wq.dat.GM,paste0(export.path,"GM_data.csv"),row.names = F)
+write.csv(wq.dat.GM,paste0(export.path,"GM_data.csv"),row.names = F)
 # wq.dat.GM.avg=ddply(wq.dat.GM,c("WY","param"),summarise,avg.GM=mean(GM,na.rm=T))
 wq.dat.GM.avg=cast(wq.dat.GM,WBID+WY~param,value="GM",mean,na.rm=T)
 
