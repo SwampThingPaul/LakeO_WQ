@@ -179,6 +179,7 @@ wq.dat.GM.avg$TP_1_3=with(wq.dat.GM.avg,ave(TP.ann.exceed,WBID,FUN=function(x) i
 wq.dat.GM.avg$TN.ann.exceed=with(wq.dat.GM.avg,ifelse(TN>TN.lim,1,0))
 wq.dat.GM.avg$TN_1_3=with(wq.dat.GM.avg,ave(TN.ann.exceed,WBID,FUN=function(x) ifelse(c(rep(NA,2),rollsum(x,k=3))>=3,1,0)))
 
+wq.dat.GM.avg$WY=as.character(wq.dat.GM.avg$WY)
 
 WBIDs.val=paste0("3212",LETTERS[1:9])
 cols=adjustcolor(c("indianred1","dodgerblue1","forestgreen","orange1","yellow3","azure"),0.5)
@@ -275,8 +276,8 @@ i=1
 tmp=subset(wq.dat.GM.avg,WBID==WBIDs.val[i])
 tmp[,vars]%>%
   flextable(col_keys=vars[1:7])%>%
-  colformat_num(j=3:5,digits=0)%>%
-  colformat_num(j=6:7,digits=2)%>%
+  colformat_double(j=3:5,digits=0)%>%
+  colformat_double(j=6:7,digits=2)%>%
   bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
@@ -397,8 +398,8 @@ i=2
  vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
 tmp[,vars]%>%
   flextable(col_keys=vars[1:7])%>%
-  colformat_num(j=3:5,digits=0)%>%
-  colformat_num(j=6:7,digits=2)%>%
+  colformat_double(j=3:5,digits=0)%>%
+  colformat_double(j=6:7,digits=2)%>%
   bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
@@ -518,8 +519,8 @@ i=3
  vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
 tmp[,vars]%>%
   flextable(col_keys=vars[1:7])%>%
-  colformat_num(j=3:5,digits=0)%>%
-  colformat_num(j=6:7,digits=2)%>%
+  colformat_double(j=3:5,digits=0)%>%
+  colformat_double(j=6:7,digits=2)%>%
   bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
@@ -639,8 +640,8 @@ i=4
  vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
 tmp[,vars]%>%
   flextable(col_keys=vars[1:7])%>%
-  colformat_num(j=3:5,digits=0)%>%
-  colformat_num(j=6:7,digits=2)%>%
+  colformat_double(j=3:5,digits=0)%>%
+  colformat_double(j=6:7,digits=2)%>%
   bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
@@ -760,8 +761,8 @@ i=5
  vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
 tmp[,vars]%>%
   flextable(col_keys=vars[1:7])%>%
-  colformat_num(j=3:5,digits=0)%>%
-  colformat_num(j=6:7,digits=2)%>%
+  colformat_double(j=3:5,digits=0)%>%
+  colformat_double(j=6:7,digits=2)%>%
   bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
@@ -881,8 +882,8 @@ i=6
  vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
 tmp[,vars]%>%
   flextable(col_keys=vars[1:7])%>%
-  colformat_num(j=3:5,digits=0)%>%
-  colformat_num(j=6:7,digits=2)%>%
+  colformat_double(j=3:5,digits=0)%>%
+  colformat_double(j=6:7,digits=2)%>%
   bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
@@ -1002,8 +1003,8 @@ i=7
  vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
 tmp[,vars]%>%
   flextable(col_keys=vars[1:7])%>%
-  colformat_num(j=3:5,digits=0)%>%
-  colformat_num(j=6:7,digits=2)%>%
+  colformat_double(j=3:5,digits=0)%>%
+  colformat_double(j=6:7,digits=2)%>%
   bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
@@ -1123,8 +1124,8 @@ i=8
  vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
 tmp[,vars]%>%
   flextable(col_keys=vars[1:7])%>%
-  colformat_num(j=3:5,digits=0)%>%
-  colformat_num(j=6:7,digits=2)%>%
+  colformat_double(j=3:5,digits=0)%>%
+  colformat_double(j=6:7,digits=2)%>%
   bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
@@ -1244,8 +1245,8 @@ i=9
  vars=c("WBID","WY","alk","color","Chla","TP","TN","TP.lim","TN.lim","Chla.ann.exceed","TP.ann.exceed","TN.ann.exceed")
 tmp[,vars]%>%
   flextable(col_keys=vars[1:7])%>%
-  colformat_num(j=3:5,digits=0)%>%
-  colformat_num(j=6:7,digits=2)%>%
+  colformat_double(j=3:5,digits=0)%>%
+  colformat_double(j=6:7,digits=2)%>%
   bg(j=5,i=~Chla.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=6,i=~TP.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
   bg(j=7,i=~TN.ann.exceed==1,bg=adjustcolor("red",0.25))%>%
