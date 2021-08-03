@@ -54,7 +54,8 @@ plot(wbid.lakeO)
 
 
 # -------------------------------------------------------------------------
-dates=date.fun(c("2000-05-01","2020-05-01"))
+CurWY=2021
+dates=date.fun(c("2000-05-01",paste0(CurWY,"-04-30")))
 
 params=data.frame(Test.Number=c(18,21,80,20,25,61,179,13,67),
                   param=c("NOx","TKN","TN","NH4","TP","Chla","Chla","color","alk"))
@@ -119,7 +120,7 @@ wq.dat.xtab.melt=merge(wq.dat.xtab.melt,samp.size.scrn[,c("Station.ID","WY","par
 
 wq.dat.GM=ddply(subset(wq.dat.xtab.melt,sea.screen==1),c("Station.ID","WBID","WY","param"),summarise,GM=exp(mean(log(value),na.rm=T)))
 wq.dat.GM=merge(wq.dat.GM,expand.grid(Station.ID=wq.sites$Station.ID,
-                                      WY=seq(2001,2020,1),
+                                      WY=seq(2001,CurWY,1),
                                       param=c("alk", "Chla", "color","TN", "TP")),all.y=T)
 write.csv(wq.dat.GM,paste0(export.path,"GM_data.csv"),row.names = F)
 # wq.dat.GM.avg=ddply(wq.dat.GM,c("WY","param"),summarise,avg.GM=mean(GM,na.rm=T))
