@@ -4,14 +4,14 @@ output:
   html_document:
     toc: yes
     includes:
-      after_body: footer.html
+      after_body: footer2.html
 editor_options: 
   chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-CurWY=2021
+CurWY=2022
 
 ## NOTE: run .../src/WBIDEval.R to update geometric mean data file
 ## Libraries
@@ -291,7 +291,7 @@ tmp[,vars]%>%
   width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
   footnote(j=1,i=1,part="header",
            value=as_paragraph(paste("Includes Stations:",
-                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))),ref_symbols=" ")%>%
   set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
 ```
 
@@ -413,7 +413,7 @@ tmp[,vars]%>%
   width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
   footnote(j=1,i=1,part="header",
            value=as_paragraph(paste("Includes Stations:",
-                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))),ref_symbols=" ")%>%
   set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
 ```
 
@@ -534,7 +534,7 @@ tmp[,vars]%>%
   width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
   footnote(j=1,i=1,part="header",
            value=as_paragraph(paste("Includes Stations:",
-                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))),ref_symbols=" ")%>%
   set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
 ```
 
@@ -655,7 +655,7 @@ tmp[,vars]%>%
   width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
   footnote(j=1,i=1,part="header",
            value=as_paragraph(paste("Includes Stations:",
-                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))),ref_symbols=" ")%>%
   set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
 ```
 
@@ -776,7 +776,7 @@ tmp[,vars]%>%
   width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
   footnote(j=1,i=1,part="header",
            value=as_paragraph(paste("Includes Stations:",
-                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))),ref_symbols=" ")%>%
   set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
 ```
 
@@ -897,7 +897,7 @@ tmp[,vars]%>%
   width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
   footnote(j=1,i=1,part="header",
            value=as_paragraph(paste("Includes Stations:",
-                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))),ref_symbols=" ")%>%
   set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
 ```
 
@@ -1018,7 +1018,7 @@ tmp[,vars]%>%
   width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
   footnote(j=1,i=1,part="header",
            value=as_paragraph(paste("Includes Stations:",
-                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))),ref_symbols=" ")%>%
   set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
 ```
 
@@ -1139,7 +1139,7 @@ tmp[,vars]%>%
   width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
   footnote(j=1,i=1,part="header",
            value=as_paragraph(paste("Includes Stations:",
-                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))),ref_symbols=" ")%>%
   set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
 ```
 
@@ -1260,7 +1260,7 @@ tmp[,vars]%>%
   width(width=c(0.5,0.5,0.75,0.75,1.1,1.4,1.1))%>%
   footnote(j=1,i=1,part="header",
            value=as_paragraph(paste("Includes Stations:",
-                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))))%>%
+                                    paste(subset(wq.sites,WBID==WBIDs.val[i])$Station.ID,collapse=", "))),ref_symbols=" ")%>%
   set_caption(caption=paste0("Average annual geometric mean concentration across WBID",WBIDs.val[i]," with annual exceedances identified by shaded area on the table."))
 ```
 
@@ -1276,3 +1276,4 @@ tmp[vars[1:7]]%>%
   )
 
 ```
+
