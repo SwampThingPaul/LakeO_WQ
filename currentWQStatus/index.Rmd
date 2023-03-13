@@ -176,7 +176,9 @@ dat.xtab.month.region$date.monCY=with(dat.xtab.month.region,date.fun(paste(CY,mo
 Updated: `r paste(format(Sys.Date(),"%B %d, %Y"))`
 
 ***
+<span style="color:red;">**Disclaimer:** The data provided here should be considered preliminary and are subject to change. The data used here is from the South Florida Water Management District and available on DBHYDRO. </span>
 
+***
 ## Spatial
 
 ```{r,echo=F,warning=FALSE,message=FALSE}
@@ -277,7 +279,7 @@ mapmisc::scaleBar(utm17,"bottomleft",bty="n",cex=0.75,seg.len=4,outer=F,col="bla
 
 ## Time Series 
 
-```{r SiteMap,echo=F,warning=FALSE,message=FALSE,fig.width=6.5,fig.height=4,fig.align='center',fig.cap="Monitoring location zone designation"}
+```{r SiteMap,echo=F,warning=FALSE,message=FALSE,fig.width=6.5,fig.height=4,fig.align='center',fig.cap="Monitoring location with littoral, nearshore and pelagic/limnetic zones identified across Lake Okeechobee. Includes active and inactive (historical) monitoring locations."}
 
 sites.shp2=merge(sites.shp,site.zones,by.x="Station.ID",by.y="SITE")
 cols=wesanderson::wes_palette("Zissou1",3,"continuous")

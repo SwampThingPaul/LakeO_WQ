@@ -147,6 +147,8 @@ lakeLit.clean=SpatialPolygonsDataFrame(lakeLit.clean,tmp.df)
 plot(lakeNS.buf)
 plot(lakeLit.clean,add=T,col="red")
 plot(subset(wq.mon,SITE%in%sites),add=T)
+plot(lakeO,add=T)
+# writeOGR(lakeLit.clean,paste0(wd,"/currentWQStatus/GIS"),"LakeOLittoral",driver="ESRI Shapefile")
 
 tmp=data.frame(sf::st_intersection(sf::st_as_sf(subset(wq.mon,SITE%in%sites)),
                                    sf::st_as_sf(gBuffer(lakeLit.clean,width=-100))))["SITE"]
