@@ -173,6 +173,9 @@ dat.xtab.month.region$date.monCY=with(dat.xtab.month.region,date.fun(paste(CY,mo
 
 ```
 
+Updated: `r paste(format(Sys.Date(),"%B %d, %Y"))`
+
+***
 
 ## Spatial
 
@@ -201,6 +204,7 @@ t2.dat.shp.TN=subset(t2.dat.shp,is.na(TN.cols)==F)
 t2.dat.shp.TN$TN=round(t2.dat.shp.TN$TN,2)
 
 ```
+
 
 ### Total Phosphorus
 
