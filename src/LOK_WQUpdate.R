@@ -83,12 +83,17 @@ lakeO.lit=spTransform(readOGR(paste0(GIS.path.gen,"/LakeOkeechobee/Littoral"),"L
 lakeO.vegall=spTransform(readOGR(paste0(GIS.path.gen,"/LakeOkeechobee/Littoral"),"LAKEO_LITTORALZONE_VEG2007"),wkt(utm17))
 lakeO.pelagic=spTransform(readOGR(paste0(GIS.path.gen,"/LakeOkeechobee/Littoral"),"LAKEoMINUSLITTORAL"),wkt(utm17))
 
-wmd.mon=spTransform(readOGR(paste0(GIS.path.gen,"/SFWMD_Monitoring_20200221"),"Environmental_Monitoring_Stations"),wkt(utm17))
+wmd.mon=spTransform(readOGR(paste0(GIS.path.gen,"/SFWMD_Mointoring_20230302"),"DBHYDRO_SITE_STATION"),wkt(utm17))
 
 wq.mon=subset(wmd.mon,ACTIVITY_S=="Surface Water Grab")
 
+tmp=subset(wq.mon,STATION%in%c("KISSR0.0","LZ2","NES135","NES191","S308C",'CLV10A'))
+
+plot(lakeO)
+plot(tmp,add=T)
+
 # writeOGR(lakeO,paste0(wd,"/currentWQStatus/GIS"),"LakeO",driver="ESRI Shapefile")
-# writeOGR(wq.mon,paste0(wd,"/currentWQStatus/GIS"),"WQmonitoring",driver="ESRI Shapefile")
+# writeOGR(wq.mon,paste0(wd,"/currentWQStatus/GIS"),"WQmonitoring",driver="ESRI Shapefile",overwrite_layer = T)
 
 # sites=c(paste0("L00",1:8),"LZ40","LZ30","KISSR0.0","TREEOUT","POLESOUT",
 #         "FEBOUT","FEBIN","PALMOUT","POLE3S","MBOXSOU","MH32000","MH24000",

@@ -72,6 +72,7 @@ leg.fun=function(b,pal,leg.title,
 
 lakeO=readOGR("./GIS","LakeO")
 wq.mon=readOGR("./GIS","WQmonitoring")
+
 lakeO.lit=readOGR("./GIS","LakeOLittoral")
 
 # WQ Sites  ----------------------------------------------------------------
@@ -93,7 +94,8 @@ sites=c(paste0("L00",1:8),"LZ40","LZ30","KISSR0.0",
         paste0("TIN",c("IN","MID","OUT")),
         paste0("IP",c("IN","MID","OUT")),
         paste0("STAKE",c("IN","MID","OUT")),
-        paste0("POLES",c("IN","MID","OUT")))
+        paste0("POLES",c("IN","MID","OUT")),
+        "LZ2","NES135","NES191","S308C",'CLV10A',"EASTSHORE")
 
 site.zones=data.frame(
   SITE=c("STAKEMID", "STAKEIN", "TREEMID", "OISLAND", "3RDPTIN", "MH16000", 
@@ -106,7 +108,8 @@ site.zones=data.frame(
          "RITAEAST", "IPMID", "PLN2OUT", "MH24000", "PLN1MID", "TREEOUT", 
          "RITTAE2", "PALMOUT", "TINOUT", "KBARMID", "KISSR0.0", "PELMID", 
          "L001", "L002", "L003", "L004", "L005", "L006", "L007", "L008", 
-         "LZ40", "LZ30", "RITAW3", "LZ15"),
+         "LZ40", "LZ30", "RITAW3", "LZ15",
+         "LZ2","NES135","NES191","S308C",'CLV10A',"EASTSHORE"),
   zone=c("littoral", "littoral", "littoral", "littoral", "littoral", 
          "littoral", "littoral", "littoral", "littoral", "littoral", "nearshore", 
          "nearshore", "nearshore", "littoral", "nearshore", "nearshore", 
@@ -118,8 +121,9 @@ site.zones=data.frame(
          "nearshore", "nearshore", "nearshore", "nearshore", "littoral", 
          "nearshore", "nearshore", "nearshore", "nearshore", "nearshore", 
          "nearshore", "nearshore", "nearshore", "pelagic", "pelagic", 
-         "pelagic", "pelagic", "pelagic", "pelagic", "pelagic", "pelagic", 
-         "pelagic", "pelagic", "pelagic", "pelagic")
+         "pelagic", "pelagic", "nearshore", "pelagic", "pelagic", "pelagic", 
+         "pelagic", "pelagic", "pelagic", "pelagic",
+         "nearshore","nearshore","nearshore","nearshore","nearshore","nearshore")
 )
 
 ## WQ Data -------------------------------------------------
@@ -136,6 +140,7 @@ for(i in 1:length(sites)){
   print(i)
 }
 dat=merge(dat,params,"Test.Number")
+dat=subset(dat,Collection.Method=="G")
 
 dat.xtab=data.frame(cast(dat,Station.ID+Date.EST~param,value="HalfMDL",mean))
 dat.xtab$TN=with(dat.xtab,TN_Combine(NOx,TKN,TN))
@@ -189,6 +194,10 @@ cols.TN=viridis::magma(length(bks.TN)-1,alpha = 0.75)
 
 t1=max(dat.xtab$Date.EST)-lubridate::duration(1,"month")
 t1.dat=subset(dat.xtab,month==as.numeric(format(t1,"%m"))&CY==as.numeric(format(t1,"%Y")))
+t1.dat=merge(t1.dat,
+             ddply(t1.dat,c("Station.ID"),summarise,max.date=max(Date.EST)),
+             by.x=c("Station.ID","Date.EST"),by.y=c("Station.ID","max.date"),all.y=T)
+
 t1.dat.shp=merge(sites.shp,t1.dat,"Station.ID",all.x=T)
 t1.dat.shp$TP.cols=col.vals=findInterval(t1.dat.shp$TP,bks.TP)
 t1.dat.shp.TP=subset(t1.dat.shp,is.na(TP.cols)==F)
@@ -198,6 +207,9 @@ t1.dat.shp.TN$TN=round(t1.dat.shp.TN$TN,2)
 
 t2=max(dat.xtab$Date.EST)
 t2.dat=subset(dat.xtab,month==as.numeric(format(t2,"%m"))&CY==as.numeric(format(t2,"%Y")))
+t2.dat=merge(t2.dat,
+             ddply(t2.dat,c("Station.ID"),summarise,max.date=max(Date.EST)),
+             by.x=c("Station.ID","Date.EST"),by.y=c("Station.ID","max.date"),all.y=T)
 t2.dat.shp=merge(sites.shp,t2.dat,"Station.ID")
 t2.dat.shp$TP.cols=col.vals=findInterval(t2.dat.shp$TP,bks.TP)
 t2.dat.shp.TP=subset(t2.dat.shp,is.na(TP.cols)==F)
@@ -213,7 +225,7 @@ t2.dat.shp.TN$TN=round(t2.dat.shp.TN$TN,2)
 ```{r TPMap,echo=F,warning=FALSE,message=FALSE,fig.width=6.5,fig.height=4,fig.align='center',fig.cap="Total Phosphorus Concentrations across the lake for the last two months."}
 
 # png(filename=paste0(plot.path,"/LOK_TP.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
-par(family="serif",mar=c(0.1,0.1,0.1,0.1),oma=c(0.5,0.5,0.5,0.5))
+par(family="serif",mar=c(0.1,0.4,0.1,0.4),oma=c(0.2,0.2,0.5,0.2),xpd=F)
 layout(matrix(1:3,1,3,byrow=T),widths=c(1,0.4,1))
 bbox.lims=bbox(lakeO)
 
@@ -222,7 +234,7 @@ plot(lakeO,border="grey",
 plot(t1.dat.shp.TP,pch=21,bg=cols.TP[t1.dat.shp.TP$TP.cols],add=T,cex=1.5,lwd=0.01)
 plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
 plot(lakeO,border="black",add=T)
-text(t1.dat.shp.TP,"TP",pos=4,offset=0.5)
+raster::text(t1.dat.shp.TP,"TP",pos=4,offset=0.5,halo=T,xpd=NA)
 mtext(side=3,adj=0,line=-1.25,
       paste(min(format(t1.dat$Date.EST,"%b %d")),max(format(t1.dat$Date.EST,"%b %d, %Y")),sep=" - "))
 
@@ -236,7 +248,7 @@ plot(lakeO,border="grey",
 plot(t2.dat.shp.TP,pch=21,bg=cols.TP[t1.dat.shp.TP$TP.cols],add=T,cex=1.5,lwd=0.01)
 plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
 plot(lakeO,border="black",add=T)
-text(t2.dat.shp.TP,"TP",pos=4,offset=0.5)
+raster::text(t2.dat.shp.TP,"TP",pos=4,offset=0.5,halo=T,xpd=NA)
 mtext(side=3,adj=0,line=-1.25,
       paste(min(format(t2.dat$Date.EST,"%b %d")),max(format(t2.dat$Date.EST,"%b %d, %Y")),sep=" - "))
 mapmisc::scaleBar(utm17,"bottomleft",bty="n",cex=0.75,seg.len=4,outer=F,col="black");
@@ -246,7 +258,7 @@ mapmisc::scaleBar(utm17,"bottomleft",bty="n",cex=0.75,seg.len=4,outer=F,col="bla
 ### Total Nitrogen
 ```{r TNMap,echo=F,warning=FALSE,message=FALSE,fig.width=6.5,fig.height=4,fig.align='center',fig.cap="Total Nitrogen Concentrations across the lake for the last two months."}
 
-par(family="serif",mar=c(0.1,0.1,0.1,0.1),oma=c(0.5,0.5,0.5,0.5))
+par(family="serif",mar=c(0.1,0.4,0.1,0.4),oma=c(0.2,0.2,0.5,0.2),xpd=F)
 layout(matrix(1:3,1,3,byrow=T),widths=c(1,0.4,1))
 
 bbox.lims=bbox(lakeO)
@@ -256,7 +268,7 @@ plot(lakeO,border="grey",
 plot(t1.dat.shp.TN,pch=21,bg=cols.TN[t1.dat.shp.TN$TN.cols],add=T,cex=1.5,lwd=0.01)
 plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
 plot(lakeO,border="black",add=T)
-text(t1.dat.shp.TN,format(t1.dat.shp.TN$TN,nsmall=2),pos=4,offset=0.5)
+raster::text(t1.dat.shp.TN,format(t1.dat.shp.TN$TN,nsmall=2),pos=4,offset=0.5,halo=T,xpd=NA)
 mtext(side=3,adj=0,line=-1.25,
       paste(min(format(t1.dat$Date.EST,"%b %d")),max(format(t1.dat$Date.EST,"%b %d, %Y")),sep=" - "))
 
@@ -270,7 +282,7 @@ plot(lakeO,border="grey",
 plot(t2.dat.shp.TN,pch=21,bg=cols.TN[t1.dat.shp.TN$TN.cols],add=T,cex=1.5,lwd=0.01)
 plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
 plot(lakeO,border="black",add=T)
-text(t2.dat.shp.TN,format(t2.dat.shp.TN$TN,nsmall=2),pos=4,offset=0.5)
+raster::text(t2.dat.shp.TN,format(t2.dat.shp.TN$TN,nsmall=2),pos=4,offset=0.5,halo=T,xpd=NA)
 mtext(side=3,adj=0,line=-1.25,
       paste(min(format(t2.dat$Date.EST,"%b %d")),max(format(t2.dat$Date.EST,"%b %d, %Y")),sep=" - "))
 mapmisc::scaleBar(utm17,"bottomleft",bty="n",cex=0.75,seg.len=4,outer=F,col="black");
