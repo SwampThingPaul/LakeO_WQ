@@ -95,7 +95,10 @@ sites=c(paste0("L00",1:8),"LZ40","LZ30","KISSR0.0",
         paste0("IP",c("IN","MID","OUT")),
         paste0("STAKE",c("IN","MID","OUT")),
         paste0("POLES",c("IN","MID","OUT")),
-        "LZ2","NES135","NES191","S308C",'CLV10A',"EASTSHORE")
+        "LZ2","NES135","NES191",'CLV10A',"EASTSHORE",
+        "S308C","S77","S169","S236","S354","S352","S351","S135",
+        "S191","S133","S127","S72","S71","C41H78","S131",
+        "FECSR78","CULV5","CULV5A","S65E")
 
 site.zones=data.frame(
   SITE=c("STAKEMID", "STAKEIN", "TREEMID", "OISLAND", "3RDPTIN", "MH16000", 
@@ -109,7 +112,8 @@ site.zones=data.frame(
          "RITTAE2", "PALMOUT", "TINOUT", "KBARMID", "KISSR0.0", "PELMID", 
          "L001", "L002", "L003", "L004", "L005", "L006", "L007", "L008", 
          "LZ40", "LZ30", "RITAW3", "LZ15",
-         "LZ2","NES135","NES191","S308C",'CLV10A',"EASTSHORE"),
+         "LZ2","NES135","NES191",'CLV10A',"EASTSHORE",
+         "CPTOUT","CPTMID","CPTIN","IPOUT","LZ42N"),
   zone=c("littoral", "littoral", "littoral", "littoral", "littoral", 
          "littoral", "littoral", "littoral", "littoral", "littoral", "nearshore", 
          "nearshore", "nearshore", "littoral", "nearshore", "nearshore", 
@@ -123,9 +127,16 @@ site.zones=data.frame(
          "nearshore", "nearshore", "nearshore", "pelagic", "pelagic", 
          "pelagic", "pelagic", "nearshore", "pelagic", "pelagic", "pelagic", 
          "pelagic", "pelagic", "pelagic", "pelagic",
-         "nearshore","nearshore","nearshore","nearshore","nearshore","nearshore")
+         "nearshore","nearshore","nearshore","nearshore","nearshore",
+         "nearshore","nearshore","nearshore","nearshore","nearshore")
 )
 
+
+site.zones.struct=data.frame(SITE=c("S308C","S77","S169","S236","S354","S352","S351",
+                                    "S135","S191","S133","S127","S72","S71",
+                                    "C41H78","S131","FECSR78","CULV5","CULV5A","S65E"),
+                             zone=NA)
+site.zones=rbind(site.zones,site.zones.struct)
 ## WQ Data -------------------------------------------------
 # -------------------------------------------------------------------------
 dates=date.fun(c("2000-05-01",as.character(Sys.Date())))
@@ -162,6 +173,15 @@ sites.shp=SpatialPointsDataFrame(sites.shp[,c("UTMX","UTMY")],
 
 dat.xtab=merge(dat.xtab,sites.shp@data,"Station.ID",all.x=T)
 dat.xtab=merge(dat.xtab,site.zones,by.x="Station.ID",by.y="SITE")
+
+
+SFWMD.SFER.analysis.sites=subset(site.zones,SITE%in%c(
+  "CLV10A","KISSR0.0","L001","L004","L005","L006","L007","L008","LZ2",
+  "LZ25A","LZ30","LZ40","PALMOUT","PELBAY3","POLE3S","POLESOUT","RITTAE2"
+))
+
+subset(site.zones,)
+
 
 dat.xtab.month.region=ddply(dat.xtab,c("CY","month","zone"),summarise,
                             mean.TP=mean(TP,na.rm=T),sd.TP=sd(TP,na.rm=T),N.TP=N.obs(TP),SE.TP=SE(TP),
@@ -306,12 +326,13 @@ plot(lakeO,border="black",add=T)
 plot(subset(sites.shp2,zone==zone.vals[3]),pch=21,bg=cols[3],add=T,cex=1.5,lwd=0.01)
 plot(subset(sites.shp2,zone==zone.vals[2]),pch=21,bg=cols[2],add=T,cex=1.5,lwd=0.01)
 plot(subset(sites.shp2,zone==zone.vals[1]),pch=21,bg=cols[1],add=T,cex=1.5,lwd=0.01)
+plot(subset(sites.shp2,is.na(zone)==T),pch=21,bg=NA,add=T,cex=1.5,lwd=0.01)
 mapmisc::scaleBar(utm17,"bottomleft",bty="n",cex=0.75,seg.len=4,outer=F,col="black");
 
 plot(0:1,0:1,ann=F,axes=F,type="n")
-legend("center",legend=zone.vals.labs,
+legend("center",legend=c(zone.vals.labs,"Structures"),
        lty=c(0),col=c("black"),
-       pch=c(21),pt.bg=cols,
+       pch=c(21),pt.bg=c(cols,NA),
        pt.cex=2,ncol=1,cex=1,bty="n",y.intersp=1,x.intersp=0.75,xpd=NA,xjust=0.5,yjust=1)
 
 ```
