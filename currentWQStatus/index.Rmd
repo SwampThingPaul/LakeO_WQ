@@ -69,10 +69,13 @@ leg.fun=function(b,pal,leg.title,
   text(x=title.x,y=title.y,leg.title,adj=title.adj,cex=title.cex,pos=title.pos,xpd=NA)
 }
 # GIS Data ----------------------------------------------------------------
-
+# lakeO=readOGR(paste0(wd,"/currentWQStatus/GIS"),"LakeO")
 lakeO=readOGR("./GIS","LakeO")
+
+# wq.mon=readOGR(paste0(wd,"/currentWQStatus/GIS"),"WQmonitoring")
 wq.mon=readOGR("./GIS","WQmonitoring")
 
+# lakeO.lit=readOGR(paste0(wd,"/currentWQStatus/GIS"),"LakeOLittoral")
 lakeO.lit=readOGR("./GIS","LakeOLittoral")
 
 # WQ Sites  ----------------------------------------------------------------
@@ -98,7 +101,7 @@ sites=c(paste0("L00",1:8),"LZ40","LZ30","KISSR0.0",
         "LZ2","NES135","NES191",'CLV10A',"EASTSHORE",
         "S308C","S77","S169","S236","S354","S352","S351","S135",
         "S191","S133","S127","S72","S71","C41H78","S131",
-        "FECSR78","CULV5","CULV5A","S65E")
+        "FECSR78","CULV5","CULV5A","S65E","S4","INDUSCAN","CULV10A")
 
 site.zones=data.frame(
   SITE=c("STAKEMID", "STAKEIN", "TREEMID", "OISLAND", "3RDPTIN", "MH16000", 
@@ -134,7 +137,7 @@ site.zones=data.frame(
 
 site.zones.struct=data.frame(SITE=c("S308C","S77","S169","S236","S354","S352","S351",
                                     "S135","S191","S133","S127","S72","S71",
-                                    "C41H78","S131","FECSR78","CULV5","CULV5A","S65E"),
+                                    "C41H78","S131","FECSR78","CULV5","CULV5A","S65E","S4","INDUSCAN","CULV10A"),
                              zone=NA)
 site.zones=rbind(site.zones,site.zones.struct)
 ## WQ Data -------------------------------------------------
@@ -207,42 +210,51 @@ Updated: `r paste(format(Sys.Date(),"%B %d, %Y"))`
 ## Spatial
 
 ```{r,echo=F,warning=FALSE,message=FALSE}
-bks.TP=seq(0,600,100)
+bks.TP=c(seq(0,500,100),3000)
 cols.TP=viridis::plasma(length(bks.TP)-1,alpha = 0.75)
-bks.TN=seq(0,5,1)
+bks.TN=c(seq(0,3,1),20)
 cols.TN=viridis::magma(length(bks.TN)-1,alpha = 0.75)
 
 t1=max(dat.xtab$Date.EST)-lubridate::duration(1,"month")
 t1.dat=subset(dat.xtab,month==as.numeric(format(t1,"%m"))&CY==as.numeric(format(t1,"%Y")))
-t1.dat=merge(t1.dat,
-             ddply(t1.dat,c("Station.ID"),summarise,max.date=max(Date.EST)),
-             by.x=c("Station.ID","Date.EST"),by.y=c("Station.ID","max.date"),all.y=T)
-
+t1.dat=ddply(t1.dat,c("Station.ID"),summarise,max.date=max(Date.EST),
+      mean.TP=mean(TP,na.rm=T),N.TP=N.obs(TP),
+      mean.TN=mean(TN,na.rm=T),N.TN=N.obs(TN))
+# t1.dat=merge(t1.dat,
+#              ddply(t1.dat,c("Station.ID"),summarise,max.date=max(Date.EST)),
+#              by.x=c("Station.ID","Date.EST"),by.y=c("Station.ID","max.date"),all.y=T)
 t1.dat.shp=merge(sites.shp,t1.dat,"Station.ID",all.x=T)
-t1.dat.shp$TP.cols=col.vals=findInterval(t1.dat.shp$TP,bks.TP)
+t1.dat.shp$TP.cols=col.vals=findInterval(t1.dat.shp$mean.TP,bks.TP)
 t1.dat.shp.TP=subset(t1.dat.shp,is.na(TP.cols)==F)
-t1.dat.shp$TN.cols=col.vals=findInterval(t1.dat.shp$TN,bks.TN)
+t1.dat.shp.TP$mean.TP=round(t1.dat.shp.TP$mean.TP,0)
+
+t1.dat.shp$TN.cols=col.vals=findInterval(t1.dat.shp$mean.TN,bks.TN)
 t1.dat.shp.TN=subset(t1.dat.shp,is.na(TN.cols)==F)
-t1.dat.shp.TN$TN=round(t1.dat.shp.TN$TN,2)
+t1.dat.shp.TN$mean.TN=round(t1.dat.shp.TN$mean.TN,2)
 
 t2=max(dat.xtab$Date.EST)
 t2.dat=subset(dat.xtab,month==as.numeric(format(t2,"%m"))&CY==as.numeric(format(t2,"%Y")))
-t2.dat=merge(t2.dat,
-             ddply(t2.dat,c("Station.ID"),summarise,max.date=max(Date.EST)),
-             by.x=c("Station.ID","Date.EST"),by.y=c("Station.ID","max.date"),all.y=T)
+t2.dat=ddply(t2.dat,c("Station.ID"),summarise,max.date=max(Date.EST),
+      mean.TP=mean(TP,na.rm=T),N.TP=N.obs(TP),
+      mean.TN=mean(TN,na.rm=T),N.TN=N.obs(TN))
+# t2.dat=merge(t2.dat,
+#              ddply(t2.dat,c("Station.ID"),summarise,max.date=max(Date.EST)),
+#              by.x=c("Station.ID","Date.EST"),by.y=c("Station.ID","max.date"),all.y=T)
 t2.dat.shp=merge(sites.shp,t2.dat,"Station.ID")
-t2.dat.shp$TP.cols=col.vals=findInterval(t2.dat.shp$TP,bks.TP)
+t2.dat.shp$TP.cols=col.vals=findInterval(t2.dat.shp$mean.TP,bks.TP)
 t2.dat.shp.TP=subset(t2.dat.shp,is.na(TP.cols)==F)
-t2.dat.shp$TN.cols=col.vals=findInterval(t2.dat.shp$TN,bks.TN)
+t2.dat.shp.TP$mean.TP=round(t2.dat.shp.TP$mean.TP,0)
+
+t2.dat.shp$TN.cols=col.vals=findInterval(t2.dat.shp$mean.TN,bks.TN)
 t2.dat.shp.TN=subset(t2.dat.shp,is.na(TN.cols)==F)
-t2.dat.shp.TN$TN=round(t2.dat.shp.TN$TN,2)
+t2.dat.shp.TN$mean.TN=round(t2.dat.shp.TN$mean.TN,2)
 
 ```
 
 
 ### Total Phosphorus
 
-```{r TPMap,echo=F,warning=FALSE,message=FALSE,fig.width=6.5,fig.height=4,fig.align='center',fig.cap="Total Phosphorus Concentrations across the lake for the last two months."}
+```{r TPMap,echo=F,warning=FALSE,message=FALSE,fig.width=6.5,fig.height=4,fig.align='center',fig.cap="Total Phosphorus concentrations across the lake for the last two months from grab samples only. If monitoring locations had more than one sample during the period (i.e. structures) average values were calculated."}
 
 # png(filename=paste0(plot.path,"/LOK_TP.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
 par(family="serif",mar=c(0.1,0.4,0.1,0.4),oma=c(0.2,0.2,0.5,0.2),xpd=F)
@@ -251,12 +263,12 @@ bbox.lims=bbox(lakeO)
 
 plot(lakeO,border="grey",
      ylim=bbox.lims[c(2,4)],xlim=bbox.lims[c(1,3)],lwd=1)
-plot(t1.dat.shp.TP,pch=21,bg=cols.TP[t1.dat.shp.TP$TP.cols],add=T,cex=1.5,lwd=0.01)
 plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
+plot(t1.dat.shp.TP,pch=21,bg=cols.TP[t1.dat.shp.TP$TP.cols],add=T,cex=1.5,lwd=0.01)
 plot(lakeO,border="black",add=T)
-raster::text(t1.dat.shp.TP,"TP",pos=4,offset=0.5,halo=T,xpd=NA)
+raster::text(t1.dat.shp.TP,"mean.TP",pos=4,offset=0.5,halo=T,xpd=NA)
 mtext(side=3,adj=0,line=-1.25,
-      paste(min(format(t1.dat$Date.EST,"%b %d")),max(format(t1.dat$Date.EST,"%b %d, %Y")),sep=" - "))
+      paste(min(format(t1.dat$max.date,"%b %d")),max(format(t1.dat$max.date,"%b %d, %Y")),sep=" - "))
 
 plot(0:1,0:1,ann=F,axes=F,type="n")
 leg.fun(bks.TP,cols.TP,"Total Phosphorus (\u03BCg L\u207B\u00B9)",
@@ -265,18 +277,18 @@ leg.fun(bks.TP,cols.TP,"Total Phosphorus (\u03BCg L\u207B\u00B9)",
 
 plot(lakeO,border="grey",
      ylim=bbox.lims[c(2,4)],xlim=bbox.lims[c(1,3)],lwd=1)
-plot(t2.dat.shp.TP,pch=21,bg=cols.TP[t1.dat.shp.TP$TP.cols],add=T,cex=1.5,lwd=0.01)
 plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
+plot(t2.dat.shp.TP,pch=21,bg=cols.TP[t1.dat.shp.TP$TP.cols],add=T,cex=1.5,lwd=0.01)
 plot(lakeO,border="black",add=T)
-raster::text(t2.dat.shp.TP,"TP",pos=4,offset=0.5,halo=T,xpd=NA)
+raster::text(t2.dat.shp.TP,"mean.TP",pos=4,offset=0.5,halo=T,xpd=NA)
 mtext(side=3,adj=0,line=-1.25,
-      paste(min(format(t2.dat$Date.EST,"%b %d")),max(format(t2.dat$Date.EST,"%b %d, %Y")),sep=" - "))
-mapmisc::scaleBar(utm17,"bottomleft",bty="n",cex=0.75,seg.len=4,outer=F,col="black");
+      paste(min(format(t2.dat$max.date,"%b %d")),max(format(t2.dat$max.date,"%b %d, %Y")),sep=" - "))
+mapmisc::scaleBar(utm17,"bottomleft",bty="n",cex=1,seg.len=4,outer=F,col="black");
 
 ```
 
 ### Total Nitrogen
-```{r TNMap,echo=F,warning=FALSE,message=FALSE,fig.width=6.5,fig.height=4,fig.align='center',fig.cap="Total Nitrogen Concentrations across the lake for the last two months."}
+```{r TNMap,echo=F,warning=FALSE,message=FALSE,fig.width=6.5,fig.height=4,fig.align='center',fig.cap="Total Nitrogen concentrations across the lake for the last two months from grab samples only. If monitoring locations had more than one sample during the period (i.e. structures) average values were calculated."}
 
 par(family="serif",mar=c(0.1,0.4,0.1,0.4),oma=c(0.2,0.2,0.5,0.2),xpd=F)
 layout(matrix(1:3,1,3,byrow=T),widths=c(1,0.4,1))
@@ -285,26 +297,26 @@ bbox.lims=bbox(lakeO)
 
 plot(lakeO,border="grey",
      ylim=bbox.lims[c(2,4)],xlim=bbox.lims[c(1,3)],lwd=1)
-plot(t1.dat.shp.TN,pch=21,bg=cols.TN[t1.dat.shp.TN$TN.cols],add=T,cex=1.5,lwd=0.01)
 plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
+plot(t1.dat.shp.TN,pch=21,bg=cols.TN[t1.dat.shp.TN$TN.cols],add=T,cex=1.5,lwd=0.01)
 plot(lakeO,border="black",add=T)
-raster::text(t1.dat.shp.TN,format(t1.dat.shp.TN$TN,nsmall=2),pos=4,offset=0.5,halo=T,xpd=NA)
+raster::text(t1.dat.shp.TN,format(t1.dat.shp.TN$mean.TN,nsmall=2),pos=4,offset=0.5,halo=T,xpd=NA)
 mtext(side=3,adj=0,line=-1.25,
-      paste(min(format(t1.dat$Date.EST,"%b %d")),max(format(t1.dat$Date.EST,"%b %d, %Y")),sep=" - "))
+      paste(min(format(t1.dat$max.date,"%b %d")),max(format(t1.dat$max.date,"%b %d, %Y")),sep=" - "))
 
 plot(0:1,0:1,ann=F,axes=F,type="n")
-leg.fun(bks.TN,cols.TN,"Total Nitorgen (mg L\u207B\u00B9)",
+leg.fun(bks.TN,cols.TN,"Total Nitrogen (mg L\u207B\u00B9)",
         leg.type = "categorical",
         txt.cex=1,title.cex = 1.25)
 
 plot(lakeO,border="grey",
      ylim=bbox.lims[c(2,4)],xlim=bbox.lims[c(1,3)],lwd=1)
-plot(t2.dat.shp.TN,pch=21,bg=cols.TN[t1.dat.shp.TN$TN.cols],add=T,cex=1.5,lwd=0.01)
 plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
+plot(t2.dat.shp.TN,pch=21,bg=cols.TN[t1.dat.shp.TN$TN.cols],add=T,cex=1.5,lwd=0.01)
 plot(lakeO,border="black",add=T)
-raster::text(t2.dat.shp.TN,format(t2.dat.shp.TN$TN,nsmall=2),pos=4,offset=0.5,halo=T,xpd=NA)
+raster::text(t2.dat.shp.TN,format(t2.dat.shp.TN$mean.TN,nsmall=2),pos=4,offset=0.5,halo=T,xpd=NA)
 mtext(side=3,adj=0,line=-1.25,
-      paste(min(format(t2.dat$Date.EST,"%b %d")),max(format(t2.dat$Date.EST,"%b %d, %Y")),sep=" - "))
+      paste(min(format(t2.dat$max.date,"%b %d")),max(format(t2.dat$max.date,"%b %d, %Y")),sep=" - "))
 mapmisc::scaleBar(utm17,"bottomleft",bty="n",cex=0.75,seg.len=4,outer=F,col="black");
 ```
 
@@ -327,6 +339,15 @@ plot(subset(sites.shp2,zone==zone.vals[3]),pch=21,bg=cols[3],add=T,cex=1.5,lwd=0
 plot(subset(sites.shp2,zone==zone.vals[2]),pch=21,bg=cols[2],add=T,cex=1.5,lwd=0.01)
 plot(subset(sites.shp2,zone==zone.vals[1]),pch=21,bg=cols[1],add=T,cex=1.5,lwd=0.01)
 plot(subset(sites.shp2,is.na(zone)==T),pch=21,bg=NA,add=T,cex=1.5,lwd=0.01)
+text(subset(sites.shp2,Station.ID%in%c("S77","CULV5A","CULV5","FECSR78","S131","C41H78","S71","S72","S127","S65E")),
+     "Station.ID",pos=2,cex=0.7,offset=0.4,xpd=NA)
+text(subset(sites.shp2,Station.ID%in%c("S4","S169","S236","S354","S351","INDUSCAN")),
+     "Station.ID",pos=1,cex=0.7,offset=0.4,xpd=NA)
+text(subset(sites.shp2,Station.ID%in%c("S352","CULV10A","S308C","S135","S191")),
+     "Station.ID",pos=4,cex=0.7,offset=0.4,xpd=NA)
+text(subset(sites.shp2,Station.ID%in%c("S133")),
+     "Station.ID",pos=3,cex=0.7,offset=0.4,xpd=NA)
+
 mapmisc::scaleBar(utm17,"bottomleft",bty="n",cex=0.75,seg.len=4,outer=F,col="black");
 
 plot(0:1,0:1,ann=F,axes=F,type="n")
@@ -348,7 +369,7 @@ cols=wesanderson::wes_palette("Zissou1",3,"continuous")
 zone.vals.labs=c("Littoral","Nearshore","Pelagic")
 
 layout(matrix(1:15,5,3,byrow=T))
-par(family="serif",mar=c(1,1,0.25,0.5),oma=c(2,3,1,0.1));
+par(family="serif",mar=c(1,1,0.25,0.5),oma=c(2,3,1,0.1),xpd=F);
 xlim.val=c(sdate,edate);xmaj=seq(xlim.val[1],xlim.val[2],"6 months");xmin=seq(xlim.val[1],xlim.val[2],"1 months")
 
 ylim.val=c(0,600);by.y=200;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
