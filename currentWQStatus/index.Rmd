@@ -78,6 +78,10 @@ wq.mon=readOGR("./GIS","WQmonitoring")
 # lakeO.lit=readOGR(paste0(wd,"/currentWQStatus/GIS"),"LakeOLittoral")
 lakeO.lit=readOGR("./GIS","LakeOLittoral")
 
+# canals=readOGR(paste0(wd,"/currentWQStatus/GIS"),"crop_canals")
+canals=readOGR("./GIS","crop_canals")
+
+
 # WQ Sites  ----------------------------------------------------------------
 sites=c(paste0("L00",1:8),"LZ40","LZ30","KISSR0.0",
         "FEBOUT","FEBIN","PALMOUT","POLE3S","MBOXSOU","MH32000","MH24000",
@@ -185,7 +189,7 @@ SFWMD.SFER.analysis.sites=subset(site.zones,SITE%in%c(
 
 subset(site.zones,)
 
-
+subset(dat.xtab,zone=="littoral"&month==01&CY==2023)
 dat.xtab.month.region=ddply(dat.xtab,c("CY","month","zone"),summarise,
                             mean.TP=mean(TP,na.rm=T),sd.TP=sd(TP,na.rm=T),N.TP=N.obs(TP),SE.TP=SE(TP),
                             mean.SRP=mean(SRP,na.rm=T),sd.SRP=sd(SRP,na.rm=T),N.SRP=N.obs(SRP),SE.SRP=SE(SRP),
@@ -215,7 +219,7 @@ cols.TP=viridis::plasma(length(bks.TP)-1,alpha = 0.75)
 bks.TN=c(seq(0,3,1),20)
 cols.TN=viridis::magma(length(bks.TN)-1,alpha = 0.75)
 
-t1=max(dat.xtab$Date.EST)-lubridate::duration(1,"month")
+t1=date.fun(max(dat.xtab$Date.EST)-lubridate::duration(1,"month"))
 t1.dat=subset(dat.xtab,month==as.numeric(format(t1,"%m"))&CY==as.numeric(format(t1,"%Y")))
 t1.dat=ddply(t1.dat,c("Station.ID"),summarise,max.date=max(Date.EST),
       mean.TP=mean(TP,na.rm=T),N.TP=N.obs(TP),
@@ -264,6 +268,7 @@ bbox.lims=bbox(lakeO)
 plot(lakeO,border="grey",
      ylim=bbox.lims[c(2,4)],xlim=bbox.lims[c(1,3)],lwd=1)
 plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
+plot(canals,add=T,col="lightblue")
 plot(t1.dat.shp.TP,pch=21,bg=cols.TP[t1.dat.shp.TP$TP.cols],add=T,cex=1.5,lwd=0.01)
 plot(lakeO,border="black",add=T)
 raster::text(t1.dat.shp.TP,"mean.TP",pos=4,offset=0.5,halo=T,xpd=NA)
@@ -278,6 +283,7 @@ leg.fun(bks.TP,cols.TP,"Total Phosphorus (\u03BCg L\u207B\u00B9)",
 plot(lakeO,border="grey",
      ylim=bbox.lims[c(2,4)],xlim=bbox.lims[c(1,3)],lwd=1)
 plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
+plot(canals,add=T,col="lightblue")
 plot(t2.dat.shp.TP,pch=21,bg=cols.TP[t1.dat.shp.TP$TP.cols],add=T,cex=1.5,lwd=0.01)
 plot(lakeO,border="black",add=T)
 raster::text(t2.dat.shp.TP,"mean.TP",pos=4,offset=0.5,halo=T,xpd=NA)
@@ -298,6 +304,7 @@ bbox.lims=bbox(lakeO)
 plot(lakeO,border="grey",
      ylim=bbox.lims[c(2,4)],xlim=bbox.lims[c(1,3)],lwd=1)
 plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
+plot(canals,add=T,col="lightblue")
 plot(t1.dat.shp.TN,pch=21,bg=cols.TN[t1.dat.shp.TN$TN.cols],add=T,cex=1.5,lwd=0.01)
 plot(lakeO,border="black",add=T)
 raster::text(t1.dat.shp.TN,format(t1.dat.shp.TN$mean.TN,nsmall=2),pos=4,offset=0.5,halo=T,xpd=NA)
@@ -312,6 +319,7 @@ leg.fun(bks.TN,cols.TN,"Total Nitrogen (mg L\u207B\u00B9)",
 plot(lakeO,border="grey",
      ylim=bbox.lims[c(2,4)],xlim=bbox.lims[c(1,3)],lwd=1)
 plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
+plot(canals,add=T,col="lightblue")
 plot(t2.dat.shp.TN,pch=21,bg=cols.TN[t1.dat.shp.TN$TN.cols],add=T,cex=1.5,lwd=0.01)
 plot(lakeO,border="black",add=T)
 raster::text(t2.dat.shp.TN,format(t2.dat.shp.TN$mean.TN,nsmall=2),pos=4,offset=0.5,halo=T,xpd=NA)
@@ -334,6 +342,7 @@ layout(matrix(1:2,1,2,byrow=T),widths=c(1,0.4))
 plot(lakeO,border="grey",
      ylim=bbox.lims[c(2,4)],xlim=bbox.lims[c(1,3)],lwd=1)
 plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
+plot(canals,add=T,col="lightblue")
 plot(lakeO,border="black",add=T)
 plot(subset(sites.shp2,zone==zone.vals[3]),pch=21,bg=cols[3],add=T,cex=1.5,lwd=0.01)
 plot(subset(sites.shp2,zone==zone.vals[2]),pch=21,bg=cols[2],add=T,cex=1.5,lwd=0.01)
@@ -355,6 +364,10 @@ legend("center",legend=c(zone.vals.labs,"Structures"),
        lty=c(0),col=c("black"),
        pch=c(21),pt.bg=c(cols,NA),
        pt.cex=2,ncol=1,cex=1,bty="n",y.intersp=1,x.intersp=0.75,xpd=NA,xjust=0.5,yjust=1)
+
+# library(tmap)
+# tmap_mode("view")
+# tm_shape(sites.shp2)+tm_dots()
 
 ```
 

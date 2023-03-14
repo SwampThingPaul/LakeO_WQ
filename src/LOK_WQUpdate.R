@@ -78,6 +78,8 @@ leg.fun=function(b,pal,leg.title,
   text(x=title.x,y=title.y,leg.title,adj=title.adj,cex=title.cex,pos=title.pos,xpd=NA)
 }
 # GIS Data ----------------------------------------------------------------
+canals=spTransform(readOGR(paste0(GIS.path.gen,"/SFER_GIS_Geodatabase.gdb"),"SFWMD_Canals"),utm17)
+
 lakeO=spTransform(readOGR(paste0(GIS.path.gen,"/SFWMD"),"LakeOkeechobee_general"),wkt(utm17))
 lakeO.lit=spTransform(readOGR(paste0(GIS.path.gen,"/LakeOkeechobee/Littoral"),"LAKEOKEELITTORALZONE_Dissolv"),wkt(utm17))
 lakeO.vegall=spTransform(readOGR(paste0(GIS.path.gen,"/LakeOkeechobee/Littoral"),"LAKEO_LITTORALZONE_VEG2007"),wkt(utm17))
@@ -94,6 +96,17 @@ plot(tmp,add=T)
 
 # writeOGR(lakeO,paste0(wd,"/currentWQStatus/GIS"),"LakeO",driver="ESRI Shapefile")
 # writeOGR(wq.mon,paste0(wd,"/currentWQStatus/GIS"),"WQmonitoring",driver="ESRI Shapefile",overwrite_layer = T)
+
+bbox(lakeO)
+AOI=raster::extent(gBuffer(lakeO,width=5000))
+AOI.poly=as(AOI,"SpatialPolygons")
+proj4string(AOI.poly)=utm17
+
+bbox.lims=bbox(AOI.poly)
+plot(lakeO,ylim=bbox.lims[c(2,4)],xlim=bbox.lims[c(1,3)])
+plot(AOI.poly,add=T)
+plot(crop(canals,AOI.poly),add=T)
+# writeOGR(crop(canals,AOI.poly),paste0(wd,"/currentWQStatus/GIS"),"crop_canals",driver="ESRI Shapefile",overwrite_layer = T)
 
 # sites=c(paste0("L00",1:8),"LZ40","LZ30","KISSR0.0","TREEOUT","POLESOUT",
 #         "FEBOUT","FEBIN","PALMOUT","POLE3S","MBOXSOU","MH32000","MH24000",
