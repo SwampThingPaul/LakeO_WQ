@@ -147,6 +147,7 @@ site.zones=rbind(site.zones,site.zones.struct)
 ## WQ Data -------------------------------------------------
 # -------------------------------------------------------------------------
 end.date=date.fun(as.character(Sys.Date()))
+end.date1=end.date
 start.date=date.fun(end.date-lubridate::duration(4,"years"))
 dates=c(start.date,end.date)
 
@@ -463,9 +464,9 @@ for(i in 1:3){
   }
   box(lwd=1)
 }
-ylim.val=c(0,300);by.y=100;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+ylim.val=c(1,300);ymaj=log.scale.fun(ylim.val,"major");ymin=log.scale.fun(ylim.val,"minor");#by.y=100;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
 for(i in 1:3){
-  plot(mean.TP~date.monCY,dat.xtab.month.region,ylim=ylim.val,xlim=xlim.val,ann=F,axes=F,type="n")  
+  plot(mean.TP~date.monCY,dat.xtab.month.region,ylim=ylim.val,xlim=xlim.val,ann=F,axes=F,type="n",log="y")  
   abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
   with(subset(dat.xtab.month.region,zone==zone.vals[i]),pt_line_error(date.monCY,mean.Chla,SE.Chla,2,cols[i],1,21,cols[i],length=0.02,pt.lwd=0.01))
   #with(subset(dat.xtab.month.region,zone==zone.vals[i]),pt_line(date.monCY,mean.TP,2,cols[i],1,21,cols[i]))
@@ -644,6 +645,8 @@ DBHYDRO.meta.byDBKEY=function(DBKEY){
 # flow.meta=read_html(DBHYDRO.meta.link)
 # flow.meta=data.frame(html_table(flow.meta,fill=T)[[5]])
 
+DBHYDRO.meta.byDBKEY(subset(flow.dbkeys,STRUCT=="S77")$DBKEY)
+
 flow.meta=DBHYDRO.meta.byDBKEY(flow.dbkeys$DBKEY)
 # head(flow.meta)
 flow.meta$START.DATE=date.fun(flow.meta$START.DATE,form="%d-%B-%Y")
@@ -653,8 +656,8 @@ flow.meta$END.DATE=date.fun(flow.meta$END.DATE,form="%d-%B-%Y")
 # min(flow.meta$END.DATE)
 # subset(flow.meta,END.DATE<date.fun("2023-03-13"))
 
-subset(flow.meta,DBKEY=="WH036")
-DBHYDRO.meta.bysite("FISHCR","FLOW")
+# subset(flow.meta,DBKEY=="WH036")
+# DBHYDRO.meta.bysite("FISHCR","FLOW")
 # -------------------------------------------------------------------------
 # edate=date.fun(as.character(Sys.Date()))
 # sdate=date.fun(paste(format(edate-lubridate::duration(4,"years"),"%Y"),"05-01",sep="-"))
@@ -662,7 +665,12 @@ DBHYDRO.meta.bysite("FISHCR","FLOW")
 # 
 # subset(flow.meta,END.DATE%in%seq(sdate,edate,"1 day"))
 # flow.dbkeys
-flow.dbkeys2=subset(flow.dbkeys,DBKEY%in%subset(flow.meta,END.DATE%in%seq(sdate,edate,"1 day"))$DBKEY)
+# subset(flow.meta,SITE=="S77")
+# subset(flow.meta,SITE=="S77"&START.DATE<dates[2]&END.DATE>dates[1])
+# range(subset(flow.meta,START.DATE<dates[2]&END.DATE>dates[1])$END.DATE)
+# subset(flow.dbkeys,DBKEY%in%subset(flow.meta,END.DATE%in%seq(sdate,date.fun(edate+lubridate::duration(1,"day")),"1 day"))$DBKEY)
+
+flow.dbkeys2=subset(flow.dbkeys,DBKEY%in%subset(flow.meta,START.DATE<dates[2]&END.DATE>dates[1])$DBKEY)
 
 ## Just to check
 # merge(ddply(flow.dbkeys,"STRUCT",summarise,N.val=N.obs(STRUCT)),
@@ -699,9 +707,9 @@ flow.mon.sum=flow.mon.sum[,c("STRUCT", "ALIAS", "Basin", "WQSite", "WY", "CY", "
 
 
 WY.Tflow=ddply(flow.mon.sum,"WY",summarise,inflow.Q.cfs=sum(Inflow,na.rm=T),outflow.Q.cfs=sum(Outflow,na.rm=T))
-WY.Tflow
-cfs.to.acftd(WY.Tflow$inflow.Q.cfs)
-cfs.to.acftd(WY.Tflow$outflow.Q.cfs)
+# WY.Tflow
+# cfs.to.acftd(WY.Tflow$inflow.Q.cfs)
+# cfs.to.acftd(WY.Tflow$outflow.Q.cfs)
 # Water Quality -----------------------------------------------------------
 wq.sites=ddply(flow.dbkeys2,"WQSite",summarise,N.val=N.obs(ALIAS))
 
@@ -722,9 +730,9 @@ wq.dat$month=as.numeric(format(wq.dat$Date.EST,"%m"))
 wq.dat$CY=as.numeric(format(wq.dat$Date.EST,"%Y"))
 wq.dat$WY=WY(wq.dat$Date.EST)
 N.TP=ddply(subset(wq.dat,Param=="TP"),c("WY","Station.ID"),summarise,N.val=N.obs(HalfMDL),mean.val=mean(HalfMDL,na.rm=T))
-N.TP
+# N.TP
 N.TSS=ddply(subset(wq.dat,Param=="TSS"),c("WY","Station.ID"),summarise,N.val=N.obs(HalfMDL),mean.val=mean(HalfMDL,na.rm=T))
-N.TSS
+# N.TSS
 
 # checking for more than one sample per day
 # test=cast(subset(wq.dat,Project.Code!="LAB"),Station.ID+Date.EST~Param,value="HalfMDL",fun.aggregate = function(x)N.obs(x))
@@ -787,8 +795,8 @@ TPload.mon.sum2=merge(TPload.mon.sum2,Qload.mon.sum2[,c("CY","month","inflow.flo
 TPload.mon.sum2$inflow.FWM=with(TPload.mon.sum2,(inflow.load/(inflow.flow*1.233e6))*1e9)
 TPload.mon.sum2$outflow.FWM=with(TPload.mon.sum2,(outflow.load/(outflow.flow*1.233e6))*1e9)
 TPload.mon.sum2=TPload.mon.sum2[order(TPload.mon.sum2$CY,TPload.mon.sum2$month),]
-TPload.mon.sum2$inflow.FWM.ma=with(TPload.mon.sum2,rollapply(inflow.load,12,sum,align="right",fill=NA)/rollapply(inflow.flow*1.233e6,12,sum,align="right",fill=NA)*1e9)
-TPload.mon.sum2$outflow.FWM.ma=with(TPload.mon.sum2,rollapply(outflow.load,12,sum,align="right",fill=NA)/rollapply(outflow.flow*1.233e6,12,sum,align="right",fill=NA)*1e9)
+TPload.mon.sum2$inflow.FWM.ma=with(TPload.mon.sum2,ifelse(inflow.flow==0,NA,rollapply(inflow.load,12,sum,align="right",fill=NA)/rollapply(inflow.flow*1.233e6,12,sum,align="right",fill=NA)*1e9))
+TPload.mon.sum2$outflow.FWM.ma=with(TPload.mon.sum2,ifelse(outflow.flow==0,NA,rollapply(outflow.load,12,sum,align="right",fill=NA)/rollapply(outflow.flow*1.233e6,12,sum,align="right",fill=NA)*1e9))
 TPload.mon.sum2$MonCY.date=with(TPload.mon.sum2,date.fun(paste(CY,month,"01",sep="-")))
 
 
@@ -803,109 +811,36 @@ TNload.mon.sum2=merge(TNload.mon.sum2,Qload.mon.sum2[,c("CY","month","inflow.flo
 TNload.mon.sum2$inflow.FWM=with(TNload.mon.sum2,(inflow.load/(inflow.flow*1.233e6))*1e6)
 TNload.mon.sum2$outflow.FWM=with(TNload.mon.sum2,(outflow.load/(outflow.flow*1.233e6))*1e6)
 TNload.mon.sum2=TNload.mon.sum2[order(TNload.mon.sum2$CY,TNload.mon.sum2$month),]
-TNload.mon.sum2$inflow.FWM.ma=with(TNload.mon.sum2,rollapply(inflow.load,12,sum,align="right",fill=NA)/rollapply(inflow.flow*1.233e6,12,sum,align="right",fill=NA)*1e6)
-TNload.mon.sum2$outflow.FWM.ma=with(TNload.mon.sum2,rollapply(outflow.load,12,sum,align="right",fill=NA)/rollapply(outflow.flow*1.233e6,12,sum,align="right",fill=NA)*1e6)
+TNload.mon.sum2$inflow.FWM.ma=with(TNload.mon.sum2,ifelse(inflow.flow==0,NA,rollapply(inflow.load,12,sum,align="right",fill=NA)/rollapply(inflow.flow*1.233e6,12,sum,align="right",fill=NA)*1e6))
+TNload.mon.sum2$outflow.FWM.ma=with(TNload.mon.sum2,ifelse(outflow.flow==0,NA,rollapply(outflow.load,12,sum,align="right",fill=NA)/rollapply(outflow.flow*1.233e6,12,sum,align="right",fill=NA)*1e6))
 TNload.mon.sum2$MonCY.date=with(TNload.mon.sum2,date.fun(paste(CY,month,"01",sep="-")))
 
 ```
 
+### Cumulative Flow and Load 
 
-```{r  monthlyCumTPLoad,echo=FALSE,fig.width=6.5,fig.height=4.5,fig.align='center',fig.cap="Monthly cumulative total phosphorus (TP) load for lake inflow (left) and outflow (right) for the last three water years. Current calculation only uses grab samples at monitoring locations to estimate nutrient concentrations."}
+```{r  monthlyCumQ,echo=FALSE,fig.width=6.5,fig.height=6,fig.align='center',fig.cap="Monthly cumulative discharge volume, total phosphorus (TP) and total nitrogen (TN) load (top, middle and bottom, respectively) for lake inflow (left) and outflow (right) for the last three water years."}
 CurWY=WY(Sys.Date())
+reg.vals.labs=c("Inflow","Outflow")
+WY.vals=c(CurWY,CurWY-1,CurWY-2)
 cols=rev(adjustcolor(wesanderson::wes_palette("Zissou1",3,"continuous"),0.5))
-# png(filename=paste0(plot.path,"LakeO_TPcumLoad.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
-par(family="serif",mar=c(1,2,0.25,0.75),oma=c(2,2,0.75,0.1));
-layout(matrix(1:2,1,2))
-xlim.val=c(0,365);# by.x=90;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/3)
-xlim.val2=as.Date(xlim.val,origin="2000-05-01");xmaj=seq(xlim.val2[1],xlim.val2[2],"3 months");xmin=hydro.day(seq(xlim.val2[1],xlim.val2[2],"1 months"))
-xmaj.labs=format(xmaj,"%b");xmaj=hydro.day(xmaj)
-
-ylim.val=c(0,550);by.y=100;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
-plot(cumInflow~DOWY,TPload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
-abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
-with(subset(TPload.mon.sum2,WY==CurWY),pt_line(DOWY,cumInflow,1,cols[1],2,19,cols[1],pt.col=cols[1],cex=1.25))
-with(subset(TPload.mon.sum2,WY==CurWY-1),pt_line(DOWY,cumInflow,1,cols[2],2,19,cols[2],pt.col=cols[2],cex=1.25))
-with(subset(TPload.mon.sum2,WY==CurWY-2),pt_line(DOWY,cumInflow,1,cols[3],2,19,cols[3],pt.col=cols[3],cex=1.25))
-axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
-axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
-mtext(side=2,line=2.5,"Annual TP Load (tons Y\u207B\u00B9)")
-# mtext(side=3,adj=0,line=-1.25," Inflow",font=2)
-mtext(side=3,"Inflow",font=2)
-legend("topleft",
-       legend=c(paste0(CurWY," - Incomplete Year"),CurWY-1,CurWY-2),
-       pch=NA,pt.bg=NA,
-       lty=c(1),lwd=2,col=cols,
-       pt.cex=1.5,ncol=1,cex=0.75,bty="n",y.intersp=1.1,x.intersp=0.75,xpd=NA,xjust=0,yjust=1,
-       title.adj = 0,title=" Water Year")
-
-plot(cumInflow~DOWY,TPload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
-abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
-with(subset(TPload.mon.sum2,WY==CurWY),pt_line(DOWY,cumOutflow,1,cols[1],2,19,cols[1],pt.col=cols[1],cex=1.25))
-with(subset(TPload.mon.sum2,WY==CurWY-1),pt_line(DOWY,cumOutflow,1,cols[2],2,19,cols[2],pt.col=cols[2],cex=1.25))
-with(subset(TPload.mon.sum2,WY==CurWY-2),pt_line(DOWY,cumOutflow,1,cols[3],2,19,cols[3],pt.col=cols[3],cex=1.25))
-axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
-axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
-mtext(side=3,"Outflow",font=2)
-mtext(side=1,outer=T,"Day of Water Year",line=0.75)
-
-```
-
-```{r  monthlyCumTNLoad,echo=FALSE,fig.width=6.5,fig.height=4.5,fig.align='center',fig.cap="Monthly cumulative total nitrogen load (TN) for lake inflow (left) and outflow (right) for the last three water years. Current calculation only uses grab samples at monitoring locations to estimate nutrient concentrations."}
-# png(filename=paste0(plot.path,"LakeO_TNcumLoad.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
-par(family="serif",mar=c(1,2,0.25,0.75),oma=c(2,2,0.75,0.1));
-layout(matrix(1:2,1,2))
-xlim.val=c(0,365);# by.x=90;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/3)
-xlim.val2=as.Date(xlim.val,origin="2000-05-01");xmaj=seq(xlim.val2[1],xlim.val2[2],"3 months");xmin=hydro.day(seq(xlim.val2[1],xlim.val2[2],"1 months"))
-xmaj.labs=format(xmaj,"%b");xmaj=hydro.day(xmaj)
-
-ylim.val=c(0,5500);by.y=1000;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
-plot(cumInflow~DOWY,TNload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
-abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
-with(subset(TNload.mon.sum2,WY==CurWY),pt_line(DOWY,cumInflow,1,cols[1],2,19,cols[1],pt.col=cols[1],cex=1.25))
-with(subset(TNload.mon.sum2,WY==CurWY-1),pt_line(DOWY,cumInflow,1,cols[2],2,19,cols[2],pt.col=cols[2],cex=1.25))
-with(subset(TNload.mon.sum2,WY==CurWY-2),pt_line(DOWY,cumInflow,1,cols[3],2,19,cols[3],pt.col=cols[3],cex=1.25))
-axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
-axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
-mtext(side=2,line=2.5,"Annual TN Load (tons Y\u207B\u00B9)")
-# mtext(side=3,adj=0,line=-1.25," Inflow",font=2)
-mtext(side=3,"Inflow",font=2)
-legend("topleft",
-       legend=c(paste0(CurWY," - Incomplete Year"),CurWY-1,CurWY-2),
-       pch=NA,pt.bg=NA,
-       lty=c(1),lwd=2,col=cols,
-       pt.cex=1.5,ncol=1,cex=0.75,bty="n",y.intersp=1.1,x.intersp=0.75,xpd=NA,xjust=0,yjust=1,
-       title.adj = 0,title=" Water Year")
-
-plot(cumInflow~DOWY,TNload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
-abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
-with(subset(TNload.mon.sum2,WY==CurWY),pt_line(DOWY,cumOutflow,1,cols[1],2,19,cols[1],pt.col=cols[1],cex=1.25))
-with(subset(TNload.mon.sum2,WY==CurWY-1),pt_line(DOWY,cumOutflow,1,cols[2],2,19,cols[2],pt.col=cols[2],cex=1.25))
-with(subset(TNload.mon.sum2,WY==CurWY-2),pt_line(DOWY,cumOutflow,1,cols[3],2,19,cols[3],pt.col=cols[3],cex=1.25))
-axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
-axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
-mtext(side=3,"Outflow",font=2)
-mtext(side=1,outer=T,"Day of Water Year",line=0.75)
-```
-
-```{r  monthlyCumQ,echo=FALSE,fig.width=6.5,fig.height=4.5,fig.align='center',fig.cap="Monthly cumulative discharge for lake inflow (left) and outflow (right) for the last three water years."}
-# png(filename=paste0(plot.path,"LakeO_QcumLoad.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
-par(family="serif",mar=c(1,2,0.25,0.75),oma=c(2,2,0.75,0.1));
-layout(matrix(1:2,1,2))
+# png(filename=paste0(plot.path,"LakeO_cum.png"),width=6.5,height=6,units="in",res=200,type="windows",bg="white")
+par(family="serif",mar=c(1,2,0.75,0.75),oma=c(2,3.5,1,0.1));
+layout(matrix(1:6,3,2,byrow=T))
 xlim.val=c(0,365);# by.x=90;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/3)
 xlim.val2=as.Date(xlim.val,origin="2000-05-01");xmaj=seq(xlim.val2[1],xlim.val2[2],"3 months");xmin=hydro.day(seq(xlim.val2[1],xlim.val2[2],"1 months"))
 xmaj.labs=format(xmaj,"%b");xmaj=hydro.day(xmaj)
 
 ylim.val=c(0,1500);by.y=500;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
-plot(cumInflow~DOWY,Qload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
+plot(cumOutflow~DOWY,Qload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
 abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
-with(subset(Qload.mon.sum2,WY==CurWY),pt_line(DOWY,cumInflow,1,cols[1],2,19,cols[1],pt.col=cols[1],cex=1.25))
-with(subset(Qload.mon.sum2,WY==CurWY-1),pt_line(DOWY,cumInflow,1,cols[2],2,19,cols[2],pt.col=cols[2],cex=1.25))
-with(subset(Qload.mon.sum2,WY==CurWY-2),pt_line(DOWY,cumInflow,1,cols[3],2,19,cols[3],pt.col=cols[3],cex=1.25))
+for(j in 1:length(WY.vals)){
+    with(subset(Qload.mon.sum2,WY==WY.vals[j]),pt_line(DOWY,cumInflow,1,cols[j],2,19,cols[j],pt.col=cols[j],cex=1.25))
+}
 axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
 axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
-mtext(side=2,line=2.5,"Annual Discharge Volume (x1000 Ac-Ft Y\u207B\u00B9)")
-# mtext(side=3,adj=0,line=-1.25," Inflow",font=2)
-mtext(side=3,"Inflow",font=2)
+mtext(side=2,line=2.75,"Annual Discharge Volume\n(x1000 Ac-Ft Y\u207B\u00B9)",cex=0.8)
+mtext(side=3,reg.vals.labs[1],cex=0.8,font=2)
 legend("topleft",
        legend=c(paste0(CurWY," - Incomplete Year"),CurWY-1,CurWY-2),
        pch=NA,pt.bg=NA,
@@ -913,26 +848,61 @@ legend("topleft",
        pt.cex=1.5,ncol=1,cex=0.75,bty="n",y.intersp=1.1,x.intersp=0.75,xpd=NA,xjust=0,yjust=1,
        title.adj = 0,title=" Water Year")
 
-plot(cumInflow~DOWY,Qload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
+plot(cumOutflow~DOWY,Qload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
 abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
-with(subset(Qload.mon.sum2,WY==CurWY),pt_line(DOWY,cumOutflow,1,cols[1],2,19,cols[1],pt.col=cols[1],cex=1.25))
-with(subset(Qload.mon.sum2,WY==CurWY-1),pt_line(DOWY,cumOutflow,1,cols[2],2,19,cols[2],pt.col=cols[2],cex=1.25))
-with(subset(Qload.mon.sum2,WY==CurWY-2),pt_line(DOWY,cumOutflow,1,cols[3],2,19,cols[3],pt.col=cols[3],cex=1.25))
+for(j in 1:length(WY.vals)){
+  with(subset(Qload.mon.sum2,WY==WY.vals[j]),pt_line(DOWY,cumOutflow,1,cols[j],2,19,cols[j],pt.col=cols[j],cex=1.25))
+}
 axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
 axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
-mtext(side=3,"Outflow",font=2)
-mtext(side=1,outer=T,"Day of Water Year",line=0.75)
+mtext(side=3,reg.vals.labs[2],cex=0.8,font=2)
 
+ylim.val=c(0,560);by.y=100;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+plot(cumOutflow~DOWY,TPload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
+abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+for(j in 1:length(WY.vals)){
+  with(subset(TPload.mon.sum2,WY==WY.vals[j]),pt_line(DOWY,cumInflow,1,cols[j],2,19,cols[j],pt.col=cols[j],cex=1.25))
+}
+axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
+axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+mtext(side=2,line=2.75,"Annual TP Load\n(tons Y\u207B\u00B9)",cex=0.8)
+
+plot(cumOutflow~DOWY,TPload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
+abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+for(j in 1:length(WY.vals)){
+  with(subset(TPload.mon.sum2,WY==WY.vals[j]),pt_line(DOWY,cumOutflow,1,cols[j],2,19,cols[j],pt.col=cols[j],cex=1.25))
+}
+axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
+axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+
+ylim.val=c(0,5600);by.y=1000;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+plot(cumOutflow~DOWY,TNload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
+abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+for(j in 1:length(WY.vals)){
+  with(subset(TNload.mon.sum2,WY==WY.vals[j]),pt_line(DOWY,cumInflow,1,cols[j],2,19,cols[j],pt.col=cols[j],cex=1.25))
+}
+axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
+axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+mtext(side=2,line=2.75,"Annual TN Load\n(tons Y\u207B\u00B9)",cex=0.8)
+
+plot(cumOutflow~DOWY,TNload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
+abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+for(j in 1:length(WY.vals)){
+  with(subset(TNload.mon.sum2,WY==WY.vals[j]),pt_line(DOWY,cumOutflow,1,cols[j],2,19,cols[j],pt.col=cols[j],cex=1.25))
+}
+axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
+axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+mtext(side=1,outer=T,"Day of Water Year",line=0.75)
 ```
 
+### Flow-Weighted Mean Concentrations
 
-
-```{r  monthlyTPFWM,echo=FALSE,fig.width=6.5,fig.height=4.5,fig.align='center',fig.cap="Monthly and 12-month moving average total phosphorus (TP) flow-weighted mean (FWM) concentration for lake inflow (left) and outflow (right) for the last three water years."}
+```{r  monthlyTPFWM,echo=FALSE,fig.width=6.5,fig.height=5,fig.align='center',fig.cap="Monthly and 12-month moving average total phosphorus (TP) flow-weighted mean (FWM) concentration (Top) and total nitrogen (TN) FWM concentration (bottom) for lake inflow (left) and outflow (right) for the last three water years."}
 CurWY=WY(Sys.Date())
 cols=adjustcolor(c("dodgerblue1","indianred1"),0.5)
-# png(filename=paste0(plot.path,"LakeO_TPFWM.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
-par(family="serif",mar=c(1,2,0.25,0.75),oma=c(2,2,0.75,0.1));
-layout(matrix(1:2,1,2))
+# png(filename=paste0(plot.path,"LakeO_FWM.png"),width=6.5,height=5,units="in",res=200,type="windows",bg="white")
+par(family="serif",mar=c(1,2,1,0.75),oma=c(2,2,0.75,0.1));
+layout(matrix(1:4,2,2,byrow=T))
 xlim.val=date.fun(c(paste(CurWY-2,"05-01",sep="-"),paste(CurWY,"05-01",sep="-")));xmaj=seq(xlim.val[1],xlim.val[2],"1 years");xmin=seq(xlim.val[1],xlim.val[2],"6 months")
 
 ylim.val=c(0,450);by.y=100;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
@@ -952,35 +922,20 @@ legend("topleft",
 
 plot(inflow.FWM~MonCY.date,TPload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
 abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
-with(TPload.mon.sum2,pt_line(MonCY.date,outflow.FWM,1,cols[2],1.5,19,cols[2],pt.col=cols[2],cex=1.25))
-lines(outflow.FWM.ma~MonCY.date,TPload.mon.sum2,lty=2,col=cols[2],lwd=1.5)
+with(TPload.mon.sum2,pt_line(MonCY.date,outflow.FWM,1,cols[1],1.5,19,cols[2],pt.col=cols[1],cex=1.25))
+lines(outflow.FWM.ma~MonCY.date,TPload.mon.sum2,lty=2,col=cols[1],lwd=1.5)
 axis_fun(1,xmaj,xmin,WY(xmaj),line=-0.5)
 axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
 mtext(side=3,"Outflow",font=2)
-mtext(side=1,outer=T,"Water Year",line=0.75)
-```
 
-
-```{r  monthlyTNFWM,echo=FALSE,fig.width=6.5,fig.height=4.5,fig.align='center',fig.cap="Monthly and 12-month moving average total nitrogen (TN) flow-weighted mean (FWM) concentration for lake inflow (left) and outflow (right) for the last three water years."}
-# png(filename=paste0(plot.path,"LakeO_TNFWM.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
-par(family="serif",mar=c(1,2,0.25,0.75),oma=c(2,2,0.75,0.1));
-layout(matrix(1:2,1,2))
-xlim.val=date.fun(c(paste(CurWY-2,"05-01",sep="-"),paste(CurWY,"05-01",sep="-")));xmaj=seq(xlim.val[1],xlim.val[2],"1 years");xmin=seq(xlim.val[1],xlim.val[2],"6 months")
-
-ylim.val=c(0,6);by.y=2;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+ylim.val=c(0,10);by.y=2;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
 plot(inflow.FWM~MonCY.date,TNload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
 abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
-with(TNload.mon.sum2,pt_line(MonCY.date,inflow.FWM,1,cols[1],1.5,19,cols[1],pt.col=cols[1],cex=1.25))
-lines(inflow.FWM.ma~MonCY.date,TNload.mon.sum2,lty=2,col=cols[1],lwd=1.5)
+with(TNload.mon.sum2,pt_line(MonCY.date,inflow.FWM,1,cols[2],1.5,19,cols[2],pt.col=cols[2],cex=1.25))
+lines(inflow.FWM.ma~MonCY.date,TNload.mon.sum2,lty=2,col=cols[2],lwd=1.5)
 axis_fun(1,xmaj,xmin,WY(xmaj),line=-0.5)
 axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
 mtext(side=2,line=2.5,"TN FWM (mg L\u207B\u00B9)")
-mtext(side=3,"Inflow",font=2)
-legend("topleft",
-       legend=c("Monthly","12-month moving average"),
-       pch=NA,pt.bg=NA,
-       lty=c(1,2),lwd=2,col="grey",
-       pt.cex=1.5,ncol=1,cex=0.75,bty="n",y.intersp=1.1,x.intersp=0.75,xpd=NA,xjust=0,yjust=1)
 
 plot(inflow.FWM~MonCY.date,TNload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
 abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
@@ -988,6 +943,163 @@ with(TNload.mon.sum2,pt_line(MonCY.date,outflow.FWM,1,cols[2],1.5,19,cols[2],pt.
 lines(outflow.FWM.ma~MonCY.date,TNload.mon.sum2,lty=2,col=cols[2],lwd=1.5)
 axis_fun(1,xmaj,xmin,WY(xmaj),line=-0.5)
 axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
-mtext(side=3,"Outflow",font=2)
+mtext(side=1,outer=T,"Water Year",line=0.75)
+```
+
+
+## Regional Outflow
+```{r regional calculation, include = FALSE}
+out.region=data.frame(STRUCT=c("S2.S351","S3.S354","S352","CU10A","S3","S2","S351_TEMP","S352_TEMP","S354_TEMP",
+                               "S77",
+                               "S308"),
+                      region=c(rep("south",9),
+                               "west",
+                               "east")
+                      )
+TPload.mon.sum=merge(TPload.mon.sum,out.region,"STRUCT",all.x=T)
+TNload.mon.sum=merge(TNload.mon.sum,out.region,"STRUCT",all.x=T)
+flow.mon.sum=merge(flow.mon.sum,out.region,"STRUCT",all.x=T)
+
+## regional summary
+Qload.mon.sum.region=ddply(subset(flow.mon.sum,is.na(region)==F),c("region","WY","CY","month"),summarise,
+                     inflow.flow=sum(Inflow,na.rm=T),
+                     outflow.flow=sum(Outflow,na.rm=T))
+Qload.mon.sum.region$DOWY=with(Qload.mon.sum.region,hydro.day(date.fun(paste(CY,month,"01",sep="-"))))
+Qload.mon.sum.region$cumOutflow=with(Qload.mon.sum.region,ave(outflow.flow,region,WY,FUN=function(x)cumsum(x)/1e3))
+
+TPload.mon.sum.region=ddply(subset(TPload.mon.sum,is.na(region)==F),c("region","WY","CY","month"),summarise,
+                      inflow.load=sum(Inflow,na.rm=T),
+                      outflow.load=sum(Outflow,na.rm=T))
+TPload.mon.sum.region$DOWY=with(TPload.mon.sum.region,hydro.day(date.fun(paste(CY,month,"01",sep="-"))))
+TPload.mon.sum.region$cumOutflow=with(TPload.mon.sum.region,ave(outflow.load,region,WY,FUN=function(x)cumsum(x)/1e3))
+TPload.mon.sum.region=merge(TPload.mon.sum.region,Qload.mon.sum.region[,c("region","WY","CY","month","inflow.flow","outflow.flow")],c("region","WY","CY","month"))
+TPload.mon.sum.region$outflow.FWM=with(TPload.mon.sum.region,(outflow.load/(outflow.flow*1.233e6))*1e9)
+TPload.mon.sum.region=TPload.mon.sum.region[order(TPload.mon.sum.region$region,TPload.mon.sum.region$CY,TPload.mon.sum.region$month),]
+TPload.mon.sum.region$MonCY.date=with(TPload.mon.sum.region,date.fun(paste(CY,month,"01",sep="-")))
+reg.vals=c("west","south","east")
+TPload.mon.sum.region$outflow.FWM.ma=NA
+for(i in 1:3){
+  TPload.mon.sum.region[TPload.mon.sum.region$region==reg.vals[i],"outflow.FWM.ma"]=rollapply(TPload.mon.sum.region[TPload.mon.sum.region$region==reg.vals[i],"outflow.load"],12,sum,align="right",fill=NA)/rollapply(TPload.mon.sum.region[TPload.mon.sum.region$region==reg.vals[i],"outflow.flow"]*1.233e6,12,sum,align="right",fill=NA)*1e9
+}
+
+
+TNload.mon.sum.region=ddply(subset(TNload.mon.sum,is.na(region)==F),c("region","WY","CY","month"),summarise,
+                            inflow.load=sum(Inflow,na.rm=T),
+                            outflow.load=sum(Outflow,na.rm=T))
+TNload.mon.sum.region$DOWY=with(TNload.mon.sum.region,hydro.day(date.fun(paste(CY,month,"01",sep="-"))))
+TNload.mon.sum.region$cumOutflow=with(TNload.mon.sum.region,ave(outflow.load,region,WY,FUN=function(x)cumsum(x)/1e3))
+TNload.mon.sum.region=merge(TNload.mon.sum.region,Qload.mon.sum.region[,c("region","WY","CY","month","inflow.flow","outflow.flow")],c("region","WY","CY","month"))
+TNload.mon.sum.region$outflow.FWM=with(TNload.mon.sum.region,(outflow.load/(outflow.flow*1.233e6))*1e6)
+TNload.mon.sum.region=TNload.mon.sum.region[order(TNload.mon.sum.region$region,TNload.mon.sum.region$CY,TNload.mon.sum.region$month),]
+TNload.mon.sum.region$MonCY.date=with(TNload.mon.sum.region,date.fun(paste(CY,month,"01",sep="-")))
+TNload.mon.sum.region$outflow.FWM.ma=NA
+for(i in 1:3){
+  TNload.mon.sum.region[TNload.mon.sum.region$region==reg.vals[i],"outflow.FWM.ma"]=rollapply(TNload.mon.sum.region[TNload.mon.sum.region$region==reg.vals[i],"outflow.load"],12,sum,align="right",fill=NA)/rollapply(TNload.mon.sum.region[TNload.mon.sum.region$region==reg.vals[i],"outflow.flow"]*1.233e6,12,sum,align="right",fill=NA)*1e6
+}
+```
+
+```{r  monthlyregionalCumFlowLoad,echo=FALSE,fig.width=7.5,fig.height=6,fig.align='center',fig.cap="Monthly cumulative discharge volume, total phosphorus (TP) and total nitrogen (TN) load (top, middle and bottom, respectively) for the Caloosahatchee (S-77; left), EAA (middle) and St Lucie (S-308; right) for the last three water years. Current load calculations only uses grab samples at monitoring locations to estimate nutrient concentrations."}
+CurWY=WY(Sys.Date())
+reg.vals=c("west","south","east")
+reg.vals.labs=c("West (S77)" ,"South (S351,S352,S354,C10A)","East (S308)")
+WY.vals=c(CurWY,CurWY-1,CurWY-2)
+cols=rev(adjustcolor(wesanderson::wes_palette("Zissou1",3,"continuous"),0.5))
+
+# png(filename=paste0(plot.path,"LakeO_Regional_cum.png"),width=6.5,height=5,units="in",res=200,type="windows",bg="white")
+par(family="serif",mar=c(1,2,0.75,0.75),oma=c(2,3.5,1,0.1));
+layout(matrix(1:9,3,3,byrow=T))
+xlim.val=c(0,365);# by.x=90;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/3)
+xlim.val2=as.Date(xlim.val,origin="2000-05-01");xmaj=seq(xlim.val2[1],xlim.val2[2],"3 months");xmin=hydro.day(seq(xlim.val2[1],xlim.val2[2],"1 months"))
+xmaj.labs=format(xmaj,"%b");xmaj=hydro.day(xmaj)
+
+ylim.val=c(0,500);by.y=250;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+for(i in 1:3){
+  plot(cumOutflow~DOWY,Qload.mon.sum.region,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:length(WY.vals)){
+    with(subset(Qload.mon.sum.region,region==reg.vals[i]&WY==WY.vals[j]),pt_line(DOWY,cumOutflow,1,cols[j],2,19,cols[j],pt.col=cols[j],cex=1.25))
+  }
+  axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  if(i==1){mtext(side=2,line=2.5,"Annual Discharge Volume\n(x1000 Ac-Ft Y\u207B\u00B9)",cex=0.8)}
+  mtext(side=3,adj=0,reg.vals.labs[i],cex=0.8)
+  if(i==1){
+    legend("topleft",
+           legend=c(paste0(CurWY," - Incomplete Year"),CurWY-1,CurWY-2),
+           pch=NA,pt.bg=NA,
+           lty=c(1),lwd=2,col=cols,
+           pt.cex=1.5,ncol=1,cex=0.75,bty="n",y.intersp=1.1,x.intersp=0.75,xpd=NA,xjust=0,yjust=1,
+           title.adj = 0,title=" Water Year")
+  }
+}
+
+ylim.val=c(0,110);by.y=50;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+for(i in 1:3){
+  plot(cumOutflow~DOWY,TPload.mon.sum.region,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:length(WY.vals)){
+    with(subset(TPload.mon.sum.region,region==reg.vals[i]&WY==WY.vals[j]),pt_line(DOWY,cumOutflow,1,cols[j],2,19,cols[j],pt.col=cols[j],cex=1.25))
+  }
+  axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  if(i==1){mtext(side=2,line=2.5,"Annual TP Load\n(tons Y\u207B\u00B9)",cex=0.8)}
+}
+
+ylim.val=c(0,1500);by.y=500;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+for(i in 1:3){
+  plot(cumOutflow~DOWY,TNload.mon.sum.region,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  for(j in 1:length(WY.vals)){
+    with(subset(TNload.mon.sum.region,region==reg.vals[i]&WY==WY.vals[j]),pt_line(DOWY,cumOutflow,1,cols[j],2,19,cols[j],pt.col=cols[j],cex=1.25))
+  }
+  axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  if(i==1){mtext(side=2,line=2.5,"Annual TN Load\n(tons Y\u207B\u00B9)",cex=0.8)}
+  # mtext(side=3,adj=0,reg.vals.labs[i])
+}
+mtext(side=1,outer=T,"Day of Water Year",line=0.75)
+
+```
+
+```{r  monthlyregionalFWM,echo=FALSE,fig.width=6.5,fig.height=5,fig.align='center',fig.cap="Monthly and 12-month moving average total phosphorus (TP) flow-weighted mean (FWM) concentration (Top) and total nitrogen (TN) FWM concentration (bottom) for the Caloosahatchee (S-77; left), EAA (middle) and St Lucie (S-308; right) for the last three water years. Current load calculations only uses grab samples at monitoring locations to estimate nutrient concentrations."}
+pal1=colorRampPalette(c("#ffb400", "#d2980d", "#a57c1b", "#786028", "#363445", "#48446e", "#5e569b", "#776bcd", "#9080ff"))
+reg.vals=c("west","south","east")
+reg.vals.labs=c("West (S77)" ,"South (S351,S352,S354,C10A)","East (S308)")
+
+cols=adjustcolor(pal1(3),0.5)
+# png(filename=paste0(plot.path,"LakeO_Regional_FWM.png"),width=6.5,height=5,units="in",res=200,type="windows",bg="white")
+par(family="serif",mar=c(1,2,1,0.75),oma=c(2,3.5,1,0.1));
+layout(matrix(1:6,2,3,byrow=T))
+xlim.val=date.fun(c(paste(CurWY-2,"05-01",sep="-"),paste(CurWY,"05-01",sep="-")));xmaj=seq(xlim.val[1],xlim.val[2],"1 years");xmin=seq(xlim.val[1],xlim.val[2],"6 months")
+
+ylim.val=c(100,1000);ymaj=c(log.scale.fun(ylim.val,"major"),500);ymin=log.scale.fun(ylim.val,"minor")# by.y=250;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+for(i in 1:3){
+plot(outflow.FWM~MonCY.date,TPload.mon.sum.region,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F,log="y")
+abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+with(subset(TPload.mon.sum.region,region==reg.vals[i]),pt_line(MonCY.date,outflow.FWM,1,cols[i],1.5,19,cols[i],pt.col=cols[i],cex=1.25))
+lines(outflow.FWM.ma~MonCY.date,subset(TPload.mon.sum.region,region==reg.vals[i]),lty=2,col=cols[i],lwd=1.5)
+axis_fun(1,xmaj,xmin,WY(xmaj),line=-0.5)
+axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+if(i==1){mtext(side=2,line=2.75,"TP FWM (\u03BCg L\u207B\u00B9)")}
+mtext(side=3,adj=0,reg.vals.labs[i],cex=0.8)
+if(i==1){legend("topleft",
+       legend=c("Monthly","12-month moving average"),
+       pch=NA,pt.bg=NA,
+       lty=c(1,2),lwd=2,col="grey",
+       pt.cex=1.5,ncol=1,cex=0.75,bty="n",y.intersp=1.1,x.intersp=0.75,xpd=NA,xjust=0,yjust=1)
+}
+}
+
+ylim.val=c(1,10);ymaj=c(log.scale.fun(ylim.val,"major"),500);ymin=log.scale.fun(ylim.val,"minor")# by.y=250;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+for(i in 1:3){
+  plot(outflow.FWM~MonCY.date,TNload.mon.sum.region,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F,log="y")
+  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
+  with(subset(TNload.mon.sum.region,region==reg.vals[i]),pt_line(MonCY.date,outflow.FWM,1,cols[i],1.5,19,cols[i],pt.col=cols[i],cex=1.25))
+  lines(outflow.FWM.ma~MonCY.date,subset(TNload.mon.sum.region,region==reg.vals[i]),lty=2,col=cols[i],lwd=1.5)
+  axis_fun(1,xmaj,xmin,WY(xmaj),line=-0.5)
+  axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+  if(i==1){mtext(side=2,line=2.75,"TN FWM (mg L\u207B\u00B9)")}
+
+}
 mtext(side=1,outer=T,"Water Year",line=0.75)
 ```
