@@ -1,26 +1,25 @@
----
-title: "Lake Okeechobee Water Quality Update"
-output: 
-  html_document:
-    toc: yes
-    includes:
-      after_body: footer2.html
-editor_options: 
-  chunk_output_type: console
----
+## 
+## Lake Okeechobee Mass Balance
+##
+## Code was compiled by Paul Julian
+## contact info: pjulian@sccf.org
 
-```{r setup, include=FALSE}
+
+## BAD 
+## https://www.tidyverse.org/articles/2017/12/workflow-vs-script/
+## Clears Everything...start fresh.
+rm(list=ls(all=T));cat("\014");dev.off()
+
 ## Libraries
 #devtools::install_github("SwampThingPaul/AnalystHelper")
 library(AnalystHelper);
 library(plyr)
-library(reshape)
+library(reshape2)
+library(openxlsx)
 
-# GIS libraries 
-library(rgdal)
-library(rgeos)
-library(raster)
+library(rvest)
 
+## Paths
 wd="C:/Julian_LaCie/_Github/LakeO_WQ"
 
 paths=paste0(wd,c("/Plots/","/export/","/Data/","/GIS"))
@@ -31,464 +30,13 @@ data.path=paths[3]
 GIS.path=paths[4]
 GIS.path.gen="C:/Julian_LaCie/_GISData"
 
-# Helper variables
-nad83.pro=CRS("+init=epsg:4269")
-utm17=CRS("+init=epsg:26917")
-
-leg.fun=function(b,pal,leg.title,
-                 top.val=0.8,bot.val=0.2,mid.v.val=NULL,
-                 x.max=0.3,x.min=0.1,mid.val=NULL,
-                 txt.offset.val=-0.01,txt.y=NULL,leg.txt=NULL,
-                 txt.cex=0.75,txt.adj=0,txt.pos=4,txt.offset=0.5,
-                 title.cex=0.8,title.pos=3,title.adj=0,
-                 title.x=NULL,title.y=NULL,
-                 leg.type=c("continuous","categorical"), ...){
-  l.b=length(b)
-  labs=c(paste0("< ",b[2]),paste(b[2:(l.b-2)],b[3:(l.b-1)],sep=" - "),paste(paste0(">",b[(l.b-1)])))
-  n.bks=length(b)-1
-  mid.v.val=if(is.null(mid.v.val)==T){bot.val+(top.val-bot.val)/2}else{mid.v.val}
-  
-  mid.val=if(is.null(mid.val)==T){x.min+(x.max-x.min)/2}else{mid.val}
-  if(leg.type=="continuous"){
-    legend_image=as.raster(matrix(rev(pal),ncol=1))
-    rasterImage(legend_image,x.min,bot.val,x.max,top.val)
-    txt.y=if(is.null(txt.y)==T){c(bot.val,top.val)}else(txt.y)
-    leg.txt=if(is.null(leg.txt)==T){format(c(min(b),max(b)))}else(leg.txt)
-    text(x=x.max, y = txt.y, labels =leg.txt,cex=txt.cex,adj=txt.adj,pos=txt.pos,offset=txt.offset, ...)
-  }
-  if(leg.type=="categorical"){
-    bx.val= seq(bot.val,top.val,(top.val-bot.val)/n.bks)
-    rect(x.min,bx.val[1:n.bks],x.max,bx.val[2:(n.bks+1)],col=rev(pal),lty=0)
-    leg.txt=if(is.null(leg.txt)==T){labs}else(leg.txt)
-    text(y=bx.val[2:(n.bks+1)]-c(mean(diff(bx.val[2:(n.bks+1)]))/2), x = x.max, 
-         labels = rev(leg.txt),cex=txt.cex,xpd=NA,pos=txt.pos,adj=txt.adj)
-  }
-  
-  title.x=if(is.null(title.x)==T){mid.val}else{title.x}
-  title.y=if(is.null(title.y)==T){top.val}else{title.y}
-  text(x=title.x,y=title.y,leg.title,adj=title.adj,cex=title.cex,pos=title.pos,xpd=NA)
-}
-# GIS Data ----------------------------------------------------------------
-# lakeO=readOGR(paste0(wd,"/currentWQStatus/GIS"),"LakeO")
-lakeO=readOGR("./GIS","LakeO")
-
-# wq.mon=readOGR(paste0(wd,"/currentWQStatus/GIS"),"WQmonitoring")
-wq.mon=readOGR("./GIS","WQmonitoring")
-
-# lakeO.lit=readOGR(paste0(wd,"/currentWQStatus/GIS"),"LakeOLittoral")
-lakeO.lit=readOGR("./GIS","LakeOLittoral")
-
-# canals=readOGR(paste0(wd,"/currentWQStatus/GIS"),"crop_canals")
-canals=readOGR("./GIS","crop_canals")
-
-
-# WQ Sites  ----------------------------------------------------------------
-sites=c(paste0("L00",1:8),"LZ40","LZ30","KISSR0.0",
-        "FEBOUT","FEBIN","PALMOUT","POLE3S","MBOXSOU","MH32000","MH24000",
-        "MH16000","OISLAND","TIN13700","TIN16100","RITTAE2","LZ25A","LZ25","PELBAY3",
-        "PELMID","LZ2",
-        paste0("TREEN",c("IN","MID","OUT")),
-        paste0("TREE",c("IN","MID","OUT")),
-        paste0("PLN4",c("IN","MID","OUT")),
-        paste0("PLN3",c("IN","MID","OUT")),
-        paste0("PLN2",c("IN","MID","OUT")),
-        paste0("PLN1",c("IN","MID","OUT")),
-        "RITAEAST","RITAW3","RITAWEST","LZ25",
-        "LZ15","LZ42N",
-        paste0("CPT",c("IN","MID","OUT")),
-        paste0("KBAR",c("IN","MID","OUT")),
-        paste0("3RDPT",c("IN","MID","OUT")),
-        paste0("TIN",c("IN","MID","OUT")),
-        paste0("IP",c("IN","MID","OUT")),
-        paste0("STAKE",c("IN","MID","OUT")),
-        paste0("POLES",c("IN","MID","OUT")),
-        "LZ2","NES135","NES191",'CLV10A',"EASTSHORE",
-        "S308C","S77","S169","S236","S354","S352","S351","S135",
-        "S191","S133","S127","S72","S71","C41H78","S131",
-        "FECSR78","CULV5","CULV5A","S65E","S4","INDUSCAN","CULV10A")
-
-site.zones=data.frame(
-  SITE=c("STAKEMID", "STAKEIN", "TREEMID", "OISLAND", "3RDPTIN", "MH16000", 
-         "TREEIN", "PLN3IN", "PLN3MID", "TIN13700", "STAKEOUT", "POLESMID", 
-         "3RDPTOUT", "FEBIN", "PLN4MID", "TININ", "PLN1IN", "POLE3S", 
-         "PELBAY3", "TINMID", "TIN16100", "MBOXSOU", "PLN2MID", "POLESOUT", 
-         "PLN4OUT", "PLN2IN", "POLESIN", "KBARIN", "PLN3OUT", "IPIN", 
-         "TREENOUT", "3RDPTMID", "PLN4IN", "PLN1OUT", "KBAROUT", "LZ25", 
-         "TREENMID", "TREENIN", "RITAWEST", "MH32000", "LZ25A", "FEBOUT", 
-         "RITAEAST", "IPMID", "PLN2OUT", "MH24000", "PLN1MID", "TREEOUT", 
-         "RITTAE2", "PALMOUT", "TINOUT", "KBARMID", "KISSR0.0", "PELMID", 
-         "L001", "L002", "L003", "L004", "L005", "L006", "L007", "L008", 
-         "LZ40", "LZ30", "RITAW3", "LZ15",
-         "LZ2","NES135","NES191",'CLV10A',"EASTSHORE",
-         "CPTOUT","CPTMID","CPTIN","IPOUT","LZ42N"),
-  zone=c("littoral", "littoral", "littoral", "littoral", "littoral", 
-         "littoral", "littoral", "littoral", "littoral", "littoral", "nearshore", 
-         "nearshore", "nearshore", "littoral", "nearshore", "nearshore", 
-         "nearshore", "nearshore", "nearshore", "nearshore", "nearshore", 
-         "littoral", "nearshore", "nearshore", "nearshore", "nearshore", 
-         "nearshore", "nearshore", "nearshore", "nearshore", "nearshore", 
-         "nearshore", "nearshore", "nearshore", "nearshore", "nearshore", 
-         "nearshore", "nearshore", "nearshore", "littoral", "nearshore", 
-         "nearshore", "nearshore", "nearshore", "nearshore", "littoral", 
-         "nearshore", "nearshore", "nearshore", "nearshore", "nearshore", 
-         "nearshore", "nearshore", "nearshore", "pelagic", "pelagic", 
-         "pelagic", "pelagic", "nearshore", "pelagic", "pelagic", "pelagic", 
-         "pelagic", "pelagic", "pelagic", "pelagic",
-         "nearshore","nearshore","nearshore","nearshore","nearshore",
-         "nearshore","nearshore","nearshore","nearshore","nearshore")
-)
-
-
-site.zones.struct=data.frame(SITE=c("S308C","S77","S169","S236","S354","S352","S351",
-                                    "S135","S191","S133","S127","S72","S71",
-                                    "C41H78","S131","FECSR78","CULV5","CULV5A","S65E","S4","INDUSCAN","CULV10A"),
-                             zone=NA)
-site.zones=rbind(site.zones,site.zones.struct)
-## WQ Data -------------------------------------------------
 # -------------------------------------------------------------------------
-end.date=date.fun(as.character(Sys.Date()))
-start.date=date.fun(end.date-lubridate::duration(4,"years"))
-dates=c(start.date,end.date)
-
-params=data.frame(Test.Number=c(21,20,18,80,61,179,25,23,16,12),
-                  param=c("TKN","NH4","NOx","TN","Chla","Chla","TP","SRP","TSS","Turb"))
-
-dat=data.frame()
-for(i in 1:length(sites)){
-  tmp=DBHYDRO_WQ(dates[1],dates[2],sites[i],params$Test.Number)
-  dat=rbind(tmp,dat)
-  print(i)
-}
-dat=merge(dat,params,"Test.Number")
-dat=subset(dat,Collection.Method=="G")
-
-dat.xtab=data.frame(cast(dat,Station.ID+Date.EST~param,value="HalfMDL",mean))
-
-if(!(names(dat.xtab)%in%c("TKN"))){
-  dat.xtab$TKN=NA
-}
-dat.xtab$TN=with(dat.xtab,TN_Combine(NOx,TKN,TN))
-dat.xtab$DIN=with(dat.xtab,NH4+NOx)
-dat.xtab$TP=dat.xtab$TP*1000;# convert to ug/L
-dat.xtab$SRP=dat.xtab$SRP*1000;# convert to ug/L
-dat.xtab$WY=WY(dat.xtab$Date.EST)
-dat.xtab$season=FL.Hydroseason(dat.xtab$Date.EST)
-dat.xtab$month=as.numeric(format(dat.xtab$Date.EST,"%m"))
-dat.xtab$CY=as.numeric(format(dat.xtab$Date.EST,"%Y"))
-dat.xtab$day=as.numeric(format(dat.xtab$Date.EST,"%d"))
-
-sites.shp=cbind(data.frame(Station.ID=subset(wq.mon,STATION%in%sites)@data$STATION),
-                coordinates(subset(wq.mon,STATION%in%sites)))
-colnames(sites.shp)=c("Station.ID","UTMX","UTMY")
-sites.shp=SpatialPointsDataFrame(sites.shp[,c("UTMX","UTMY")],
-                                 sites.shp,
-                                 proj4string = utm17)
-
-dat.xtab=merge(dat.xtab,sites.shp@data,"Station.ID",all.x=T)
-dat.xtab=merge(dat.xtab,site.zones,by.x="Station.ID",by.y="SITE")
+WYs=seq(1979,2021,1)
+# dates=date.fun(c("1978-05-01","2020-05-01"))
+dates=date.fun(c("1978-05-01","2022-05-01"))
 
 
-SFWMD.SFER.analysis.sites=subset(site.zones,SITE%in%c(
-  "CLV10A","KISSR0.0","L001","L004","L005","L006","L007","L008","LZ2",
-  "LZ25A","LZ30","LZ40","PALMOUT","PELBAY3","POLE3S","POLESOUT","RITTAE2"
-))
-
-subset(site.zones,)
-
-subset(dat.xtab,zone=="littoral"&month==01&CY==2023)
-dat.xtab.month.region=ddply(dat.xtab,c("CY","month","zone"),summarise,
-                            mean.TP=mean(TP,na.rm=T),sd.TP=sd(TP,na.rm=T),N.TP=N.obs(TP),SE.TP=SE(TP),
-                            mean.SRP=mean(SRP,na.rm=T),sd.SRP=sd(SRP,na.rm=T),N.SRP=N.obs(SRP),SE.SRP=SE(SRP),
-                            mean.TN=mean(TN,na.rm=T),sd.TN=sd(TN,na.rm=T),N.TN=N.obs(TN),SE.TN=SE(TN),
-                            mean.DIN=mean(DIN,na.rm=T),sd.DIN=sd(DIN,na.rm=T),N.DIN=N.obs(DIN),SE.DIN=SE(DIN),
-                            mean.Chla=mean(Chla,na.rm=T),sd.Chla=sd(Chla,na.rm=T),N.DIN=N.obs(Chla),SE.Chla=SE(Chla))
-zone.vals=c("littoral","nearshore","pelagic")
-fill.val=expand.grid(CY=seq(2000,as.numeric(format(dates[2],"%Y")),1),
-            month=1:12,
-            zone=zone.vals)
-dat.xtab.month.region=merge(dat.xtab.month.region,fill.val,c("CY","month","zone"),all.y=T)
-dat.xtab.month.region$date.monCY=with(dat.xtab.month.region,date.fun(paste(CY,month,01,sep="-")))
-
-```
-
-Updated: `r paste(format(Sys.Date(),"%B %d, %Y"))`
-
-***
-<span style="color:red;">**Disclaimer:** The data provided here should be considered preliminary and are subject to change. The data used here is from the South Florida Water Management District and available on DBHYDRO. </span>
-
-***
-## Spatial
-
-```{r,echo=F,warning=FALSE,message=FALSE}
-bks.TP=c(seq(0,500,100),3000)
-cols.TP=viridis::plasma(length(bks.TP)-1,alpha = 0.75)
-bks.TN=c(seq(0,3,1),20)
-cols.TN=viridis::magma(length(bks.TN)-1,alpha = 0.75)
-
-max.date=max(dat.xtab$Date.EST)
-if(as.numeric(format(max.date,"%d"))<7){
-  # adjusted for limited monthly data
-  max.date=date.fun(paste(as.numeric(format(max.date,"%Y")),as.numeric(format(max.date,"%m"))-1,"01",sep="-"))
-}
-
-t1=date.fun(max.date-lubridate::duration(1,"month"))
-t1.dat=subset(dat.xtab,month==as.numeric(format(t1,"%m"))&CY==as.numeric(format(t1,"%Y")))
-t1.dat=ddply(t1.dat,c("Station.ID"),summarise,max.date=max(Date.EST),
-      mean.TP=mean(TP,na.rm=T),N.TP=N.obs(TP),
-      mean.TN=mean(TN,na.rm=T),N.TN=N.obs(TN))
-# t1.dat=merge(t1.dat,
-#              ddply(t1.dat,c("Station.ID"),summarise,max.date=max(Date.EST)),
-#              by.x=c("Station.ID","Date.EST"),by.y=c("Station.ID","max.date"),all.y=T)
-t1.dat.shp=merge(sites.shp,t1.dat,"Station.ID",all.x=T)
-t1.dat.shp$TP.cols=col.vals=findInterval(t1.dat.shp$mean.TP,bks.TP)
-t1.dat.shp.TP=subset(t1.dat.shp,is.na(TP.cols)==F)
-t1.dat.shp.TP$mean.TP=round(t1.dat.shp.TP$mean.TP,0)
-
-t1.dat.shp$TN.cols=col.vals=findInterval(t1.dat.shp$mean.TN,bks.TN)
-t1.dat.shp.TN=subset(t1.dat.shp,is.na(TN.cols)==F)
-t1.dat.shp.TN$mean.TN=round(t1.dat.shp.TN$mean.TN,2)
-
-t2=max.date
-t2.dat=subset(dat.xtab,month==as.numeric(format(t2,"%m"))&CY==as.numeric(format(t2,"%Y")))
-t2.dat=ddply(t2.dat,c("Station.ID"),summarise,max.date=max(Date.EST),
-      mean.TP=mean(TP,na.rm=T),N.TP=N.obs(TP),
-      mean.TN=mean(TN,na.rm=T),N.TN=N.obs(TN))
-# t2.dat=merge(t2.dat,
-#              ddply(t2.dat,c("Station.ID"),summarise,max.date=max(Date.EST)),
-#              by.x=c("Station.ID","Date.EST"),by.y=c("Station.ID","max.date"),all.y=T)
-t2.dat.shp=merge(sites.shp,t2.dat,"Station.ID")
-t2.dat.shp$TP.cols=col.vals=findInterval(t2.dat.shp$mean.TP,bks.TP)
-t2.dat.shp.TP=subset(t2.dat.shp,is.na(TP.cols)==F)
-t2.dat.shp.TP$mean.TP=round(t2.dat.shp.TP$mean.TP,0)
-
-t2.dat.shp$TN.cols=col.vals=findInterval(t2.dat.shp$mean.TN,bks.TN)
-t2.dat.shp.TN=subset(t2.dat.shp,is.na(TN.cols)==F)
-t2.dat.shp.TN$mean.TN=round(t2.dat.shp.TN$mean.TN,2)
-
-```
-
-
-### Total Phosphorus
-
-```{r TPMap,echo=F,warning=FALSE,message=FALSE,fig.width=6.5,fig.height=4,fig.align='center',fig.cap="Total Phosphorus concentrations across the lake for the last two months from grab samples only. If monitoring locations had more than one sample during the period (i.e. structures) average values were calculated."}
-
-# png(filename=paste0(plot.path,"/LOK_TP.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
-par(family="serif",mar=c(0.1,0.4,0.1,0.4),oma=c(0.2,0.2,0.5,0.2),xpd=F)
-layout(matrix(1:3,1,3,byrow=T),widths=c(1,0.4,1))
-bbox.lims=bbox(lakeO)
-
-plot(lakeO,border="grey",
-     ylim=bbox.lims[c(2,4)],xlim=bbox.lims[c(1,3)],lwd=1)
-plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
-plot(canals,add=T,col="lightblue")
-plot(t1.dat.shp.TP,pch=21,bg=cols.TP[t1.dat.shp.TP$TP.cols],add=T,cex=1.5,lwd=0.01)
-plot(lakeO,border="black",add=T)
-raster::text(t1.dat.shp.TP,"mean.TP",pos=4,offset=0.5,halo=T,xpd=NA)
-mtext(side=3,adj=0,line=-1.25,
-      paste(min(format(t1.dat$max.date,"%b %d")),max(format(t1.dat$max.date,"%b %d, %Y")),sep=" - "))
-
-plot(0:1,0:1,ann=F,axes=F,type="n")
-leg.fun(bks.TP,cols.TP,"Total Phosphorus (\u03BCg L\u207B\u00B9)",
-        leg.type = "categorical",
-        txt.cex=1,title.cex = 1.25)
-
-plot(lakeO,border="grey",
-     ylim=bbox.lims[c(2,4)],xlim=bbox.lims[c(1,3)],lwd=1)
-plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
-plot(canals,add=T,col="lightblue")
-plot(t2.dat.shp.TP,pch=21,bg=cols.TP[t2.dat.shp.TP$TP.cols],add=T,cex=1.5,lwd=0.01)
-plot(lakeO,border="black",add=T)
-raster::text(t2.dat.shp.TP,"mean.TP",pos=4,offset=0.5,halo=T,xpd=NA)
-mtext(side=3,adj=0,line=-1.25,
-      paste(min(format(t2.dat$max.date,"%b %d")),max(format(t2.dat$max.date,"%b %d, %Y")),sep=" - "))
-mapmisc::scaleBar(utm17,"bottomleft",bty="n",cex=1,seg.len=4,outer=F,col="black");
-
-```
-
-### Total Nitrogen
-```{r TNMap,echo=F,warning=FALSE,message=FALSE,fig.width=6.5,fig.height=4,fig.align='center',fig.cap="Total Nitrogen concentrations across the lake for the last two months from grab samples only. If monitoring locations had more than one sample during the period (i.e. structures) average values were calculated."}
-
-par(family="serif",mar=c(0.1,0.4,0.1,0.4),oma=c(0.2,0.2,0.5,0.2),xpd=F)
-layout(matrix(1:3,1,3,byrow=T),widths=c(1,0.4,1))
-
-bbox.lims=bbox(lakeO)
-
-plot(lakeO,border="grey",
-     ylim=bbox.lims[c(2,4)],xlim=bbox.lims[c(1,3)],lwd=1)
-plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
-plot(canals,add=T,col="lightblue")
-plot(t1.dat.shp.TN,pch=21,bg=cols.TN[t1.dat.shp.TN$TN.cols],add=T,cex=1.5,lwd=0.01)
-plot(lakeO,border="black",add=T)
-raster::text(t1.dat.shp.TN,format(t1.dat.shp.TN$mean.TN,nsmall=2),pos=4,offset=0.5,halo=T,xpd=NA)
-mtext(side=3,adj=0,line=-1.25,
-      paste(min(format(t1.dat$max.date,"%b %d")),max(format(t1.dat$max.date,"%b %d, %Y")),sep=" - "))
-
-plot(0:1,0:1,ann=F,axes=F,type="n")
-leg.fun(bks.TN,cols.TN,"Total Nitrogen (mg L\u207B\u00B9)",
-        leg.type = "categorical",
-        txt.cex=1,title.cex = 1.25)
-
-plot(lakeO,border="grey",
-     ylim=bbox.lims[c(2,4)],xlim=bbox.lims[c(1,3)],lwd=1)
-plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
-plot(canals,add=T,col="lightblue")
-plot(t2.dat.shp.TN,pch=21,bg=cols.TN[t2.dat.shp.TN$TN.cols],add=T,cex=1.5,lwd=0.01)
-plot(lakeO,border="black",add=T)
-raster::text(t2.dat.shp.TN,format(t2.dat.shp.TN$mean.TN,nsmall=2),pos=4,offset=0.5,halo=T,xpd=NA)
-mtext(side=3,adj=0,line=-1.25,
-      paste(min(format(t2.dat$max.date,"%b %d")),max(format(t2.dat$max.date,"%b %d, %Y")),sep=" - "))
-mapmisc::scaleBar(utm17,"bottomleft",bty="n",cex=0.75,seg.len=4,outer=F,col="black");
-```
-
-
-## Time Series 
-
-```{r SiteMap,echo=F,warning=FALSE,message=FALSE,fig.width=6.5,fig.height=4,fig.align='center',fig.cap="Monitoring location with littoral, nearshore and pelagic/limnetic zones identified across Lake Okeechobee. Includes active and inactive (historical) monitoring locations."}
-
-sites.shp2=merge(sites.shp,site.zones,by.x="Station.ID",by.y="SITE")
-cols=wesanderson::wes_palette("Zissou1",3,"continuous")
-zone.vals.labs=c("Littoral","Nearshore","Pelagic")
-par(family="serif",mar=c(0.1,0.1,0.1,0.1),oma=c(0.5,0.5,0.5,0.5))
-layout(matrix(1:2,1,2,byrow=T),widths=c(1,0.4))
-
-plot(lakeO,border="grey",
-     ylim=bbox.lims[c(2,4)],xlim=bbox.lims[c(1,3)],lwd=1)
-plot(lakeO.lit,add=T,col=adjustcolor("grey50",0.5),border="grey")
-plot(canals,add=T,col="lightblue")
-plot(lakeO,border="black",add=T)
-plot(subset(sites.shp2,zone==zone.vals[3]),pch=21,bg=cols[3],add=T,cex=1.5,lwd=0.01)
-plot(subset(sites.shp2,zone==zone.vals[2]),pch=21,bg=cols[2],add=T,cex=1.5,lwd=0.01)
-plot(subset(sites.shp2,zone==zone.vals[1]),pch=21,bg=cols[1],add=T,cex=1.5,lwd=0.01)
-plot(subset(sites.shp2,is.na(zone)==T),pch=21,bg=NA,add=T,cex=1.5,lwd=0.01)
-text(subset(sites.shp2,Station.ID%in%c("S77","CULV5A","CULV5","FECSR78","S131","C41H78","S71","S72","S127","S65E")),
-     "Station.ID",pos=2,cex=0.7,offset=0.4,xpd=NA)
-text(subset(sites.shp2,Station.ID%in%c("S4","S169","S236","S354","S351","INDUSCAN")),
-     "Station.ID",pos=1,cex=0.7,offset=0.4,xpd=NA)
-text(subset(sites.shp2,Station.ID%in%c("S352","CULV10A","S308C","S135","S191")),
-     "Station.ID",pos=4,cex=0.7,offset=0.4,xpd=NA)
-text(subset(sites.shp2,Station.ID%in%c("S133")),
-     "Station.ID",pos=3,cex=0.7,offset=0.4,xpd=NA)
-
-mapmisc::scaleBar(utm17,"bottomleft",bty="n",cex=0.75,seg.len=4,outer=F,col="black");
-
-plot(0:1,0:1,ann=F,axes=F,type="n")
-legend("center",legend=c(zone.vals.labs,"Structures"),
-       lty=c(0),col=c("black"),
-       pch=c(21),pt.bg=c(cols,NA),
-       pt.cex=2,ncol=1,cex=1,bty="n",y.intersp=1,x.intersp=0.75,xpd=NA,xjust=0.5,yjust=1)
-
-# library(tmap)
-# tmap_mode("view")
-# tm_shape(sites.shp2)+tm_dots()
-
-```
-
-<br>
-
-```{r monthlyTimeSeries,echo=FALSE,fig.width=7.5,fig.height=6,fig.align='center',fig.cap="Monthly arithmetic mean with standard error water quality parameters for littoral, nearshore and limnetic/pelagic regions of the lake."}
-## Time Series Plot
-edate=date.fun(paste(format(Sys.Date(),"%Y"),format(Sys.Date(),"%m"),"01",sep="-"))
-sdate=date.fun(edate-lubridate::duration(18,"months"))
-sdate=date.fun(paste(format(sdate,"%Y"),format(sdate,"%m"),"01",sep="-"))
-cols=wesanderson::wes_palette("Zissou1",3,"continuous")
-zone.vals.labs=c("Littoral","Nearshore","Pelagic")
-
-layout(matrix(1:15,5,3,byrow=T))
-par(family="serif",mar=c(1,1,0.25,0.5),oma=c(2,3,1,0.1),xpd=F);
-xlim.val=c(sdate,edate);xmaj=seq(xlim.val[1],xlim.val[2],"6 months");xmin=seq(xlim.val[1],xlim.val[2],"1 months")
-
-ylim.val=c(0,600);by.y=200;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
-for(i in 1:3){
-  plot(mean.TP~date.monCY,dat.xtab.month.region,ylim=ylim.val,xlim=xlim.val,ann=F,axes=F,type="n")  
-  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
-  with(subset(dat.xtab.month.region,zone==zone.vals[i]),pt_line_error(date.monCY,mean.TP,SE.TP,2,cols[i],1,21,cols[i],length=0.02,pt.lwd=0.01))
-  #with(subset(dat.xtab.month.region,zone==zone.vals[i]),pt_line(date.monCY,mean.TP,2,cols[i],1,21,cols[i]))
-  # axis_fun(1,xmaj,xmin,NA)
-  # axis_fun(1,xmaj,xmin,format(xmaj,"%m-%y"),line=-0.5)
-  if(i==1){
-    axis_fun(2,ymaj,ymin,ymaj);
-    mtext(side=2,line=2.5,"TP (\u03BCg L\u207B\u00B9)")
-    }else{
-      axis_fun(2,ymaj,ymin,NA)
-      }
-  box(lwd=1)
-  mtext(side=3,zone.vals.labs[i])
-}
-# ylim.val=c(0,600);by.y=200;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
-for(i in 1:3){
-  plot(mean.TP~date.monCY,dat.xtab.month.region,ylim=ylim.val,xlim=xlim.val,ann=F,axes=F,type="n")  
-  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
-  with(subset(dat.xtab.month.region,zone==zone.vals[i]),pt_line_error(date.monCY,mean.SRP,SE.SRP,2,cols[i],1,21,cols[i],length=0.02,pt.lwd=0.01))
-  #with(subset(dat.xtab.month.region,zone==zone.vals[i]),pt_line(date.monCY,mean.TP,2,cols[i],1,21,cols[i]))
-  axis_fun(1,xmaj,xmin,NA)
-  # axis_fun(1,xmaj,xmin,format(xmaj,"%m-%y"),line=-0.5)
-  if(i==1){
-    axis_fun(2,ymaj,ymin,ymaj);
-    mtext(side=2,line=2.5,"SRP (\u03BCg L\u207B\u00B9)")
-  }else{
-    axis_fun(2,ymaj,ymin,NA)
-  }
-  box(lwd=1)
-}
-
-ylim.val=c(0,5);by.y=2;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
-for(i in 1:3){
-  plot(mean.TP~date.monCY,dat.xtab.month.region,ylim=ylim.val,xlim=xlim.val,ann=F,axes=F,type="n")  
-  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
-  with(subset(dat.xtab.month.region,zone==zone.vals[i]),pt_line_error(date.monCY,mean.TN,SE.TN,2,cols[i],1,21,cols[i],length=0.02,pt.lwd=0.01))
-  #with(subset(dat.xtab.month.region,zone==zone.vals[i]),pt_line(date.monCY,mean.TP,2,cols[i],1,21,cols[i]))
-  axis_fun(1,xmaj,xmin,NA)
-  # axis_fun(1,xmaj,xmin,format(xmaj,"%m-%y"),line=-0.5)
-  if(i==1){
-    axis_fun(2,ymaj,ymin,ymaj);
-    mtext(side=2,line=2.5,"TN (mg L\u207B\u00B9)")
-  }else{
-    axis_fun(2,ymaj,ymin,NA)
-  }
-  box(lwd=1)
-}
-ylim.val=c(0,1);by.y=0.5;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
-for(i in 1:3){
-  plot(mean.TP~date.monCY,dat.xtab.month.region,ylim=ylim.val,xlim=xlim.val,ann=F,axes=F,type="n")  
-  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
-  with(subset(dat.xtab.month.region,zone==zone.vals[i]),pt_line_error(date.monCY,mean.DIN,SE.DIN,2,cols[i],1,21,cols[i],length=0.02,pt.lwd=0.01))
-  #with(subset(dat.xtab.month.region,zone==zone.vals[i]),pt_line(date.monCY,mean.TP,2,cols[i],1,21,cols[i]))
-  axis_fun(1,xmaj,xmin,NA)
-  # axis_fun(1,xmaj,xmin,format(xmaj,"%m-%y"),line=-0.5)
-  if(i==1){
-    axis_fun(2,ymaj,ymin,format(ymaj));
-    mtext(side=2,line=2.5,"DIN (mg L\u207B\u00B9)")
-  }else{
-    axis_fun(2,ymaj,ymin,NA)
-  }
-  box(lwd=1)
-}
-ylim.val=c(0,300);by.y=100;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
-for(i in 1:3){
-  plot(mean.TP~date.monCY,dat.xtab.month.region,ylim=ylim.val,xlim=xlim.val,ann=F,axes=F,type="n")  
-  abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
-  with(subset(dat.xtab.month.region,zone==zone.vals[i]),pt_line_error(date.monCY,mean.Chla,SE.Chla,2,cols[i],1,21,cols[i],length=0.02,pt.lwd=0.01))
-  #with(subset(dat.xtab.month.region,zone==zone.vals[i]),pt_line(date.monCY,mean.TP,2,cols[i],1,21,cols[i]))
-  # axis_fun(1,xmaj,xmin,NA)
-  axis_fun(1,xmaj,xmin,format(xmaj,"%m-%y"),line=-0.5)
-  if(i==1){
-    axis_fun(2,ymaj,ymin,format(ymaj));
-    mtext(side=2,line=2.5,"Chl-a (\u03BCg L\u207B\u00B9)")
-  }else{
-    axis_fun(2,ymaj,ymin,NA)
-  }
-  box(lwd=1)
-  
-}
-mtext(side=1,outer=T,line=0.75,"Date (Month-Year)")
-
-
-```
-
-
-## Lake Okeechobee Loading
-```{r data download and calculation, include = FALSE}
-library(reshape2)
+# Discharge ---------------------------------------------------------------
 flow.dbkeys.E=data.frame(
   STRUCT=c("S308","S308"),
   ALIAS=c("S308","S308"),
@@ -656,17 +204,17 @@ flow.meta$END.DATE=date.fun(flow.meta$END.DATE,form="%d-%B-%Y")
 subset(flow.meta,DBKEY=="WH036")
 DBHYDRO.meta.bysite("FISHCR","FLOW")
 # -------------------------------------------------------------------------
-# edate=date.fun(as.character(Sys.Date()))
-# sdate=date.fun(paste(format(edate-lubridate::duration(4,"years"),"%Y"),"05-01",sep="-"))
-# dates=c(sdate,edate)
-# 
-# subset(flow.meta,END.DATE%in%seq(sdate,edate,"1 day"))
-# flow.dbkeys
+edate=date.fun(as.character(Sys.Date()))
+sdate=date.fun(paste(format(edate-lubridate::duration(4,"years"),"%Y"),"05-01",sep="-"))
+dates=c(sdate,edate)
+
+subset(flow.meta,END.DATE%in%seq(sdate,edate,"1 day"))
+flow.dbkeys
 flow.dbkeys2=subset(flow.dbkeys,DBKEY%in%subset(flow.meta,END.DATE%in%seq(sdate,edate,"1 day"))$DBKEY)
 
 ## Just to check
-# merge(ddply(flow.dbkeys,"STRUCT",summarise,N.val=N.obs(STRUCT)),
-#       ddply(flow.dbkeys2,"STRUCT",summarise,N.val=N.obs(STRUCT)),"STRUCT",all.x=T)
+merge(ddply(flow.dbkeys,"STRUCT",summarise,N.val=N.obs(STRUCT)),
+      ddply(flow.dbkeys2,"STRUCT",summarise,N.val=N.obs(STRUCT)),"STRUCT",all.x=T)
 
 flow.dat=data.frame()
 for(i in 1:nrow(flow.dbkeys2)){
@@ -732,7 +280,7 @@ N.TSS
 # subset(wq.dat,Param=="TP"&Station.ID=="S65E"&Date.EST==date.fun("1990-06-18"))
 
 # Daily mean WQ removing LAB project code.
-wq.dat.xtab=reshape2::dcast(subset(wq.dat,Project.Code!="LAB"),Station.ID+Date.EST~Param,value.var="HalfMDL",mean,na.rm=T)
+wq.dat.xtab=dcast(subset(wq.dat,Project.Code!="LAB"),Station.ID+Date.EST~Param,value.var="HalfMDL",mean,na.rm=T)
 if(sum(names(wq.dat.xtab)%in%c("TKN"))==0){wq.dat.xtab$TKN=NA}
 wq.dat.xtab$TN=with(wq.dat.xtab,TN_Combine(NOx,TKN,TN))
 head(wq.dat.xtab)
@@ -759,10 +307,10 @@ flow.wq$TSSLoad.kg=with(flow.wq,Load.Calc.kg(abs(fflow.cfs),TSS.int))
 flow.wq$month=as.numeric(format(flow.wq$Date.EST,"%m"))
 flow.wq$CY=as.numeric(format(flow.wq$Date.EST,"%Y"))
 
-TPload.mon.sum=reshape2::dcast(flow.wq,STRUCT+ALIAS+WQSite+Basin+WY+CY+month~direct,value.var="TPLoad.kg",fun.aggregate=function(x) sum(x,na.rm=T))
+TPload.mon.sum=dcast(flow.wq,STRUCT+ALIAS+WQSite+Basin+WY+CY+month~direct,value.var="TPLoad.kg",fun.aggregate=function(x) sum(x,na.rm=T))
 TPload.mon.sum=TPload.mon.sum[,c("STRUCT", "ALIAS","WQSite", "Basin", "WY", "CY", "month","Inflow", "Outflow")]
 
-TNload.mon.sum=reshape2::dcast(flow.wq,STRUCT+ALIAS+WQSite+Basin+WY+CY+month~direct,value.var="TNLoad.kg",fun.aggregate=function(x) sum(x,na.rm=T))
+TNload.mon.sum=dcast(flow.wq,STRUCT+ALIAS+WQSite+Basin+WY+CY+month~direct,value.var="TNLoad.kg",fun.aggregate=function(x) sum(x,na.rm=T))
 TNload.mon.sum=TNload.mon.sum[,c("STRUCT", "ALIAS","WQSite", "Basin", "WY", "CY", "month","Inflow", "Outflow")]
 
 
@@ -807,10 +355,15 @@ TNload.mon.sum2$inflow.FWM.ma=with(TNload.mon.sum2,rollapply(inflow.load,12,sum,
 TNload.mon.sum2$outflow.FWM.ma=with(TNload.mon.sum2,rollapply(outflow.load,12,sum,align="right",fill=NA)/rollapply(outflow.flow*1.233e6,12,sum,align="right",fill=NA)*1e6)
 TNload.mon.sum2$MonCY.date=with(TNload.mon.sum2,date.fun(paste(CY,month,"01",sep="-")))
 
-```
 
+plot(inflow.FWM~MonCY.date,TPload.mon.sum2,type="l")
+lines(inflow.FWM.ma~MonCY.date,TPload.mon.sum2,lty=2)
 
-```{r  monthlyCumTPLoad,echo=FALSE,fig.width=6.5,fig.height=4.5,fig.align='center',fig.cap="Monthly cumulative total phosphorus (TP) load for lake inflow (left) and outflow (right) for the last three water years. Current calculation only uses grab samples at monitoring locations to estimate nutrient concentrations."}
+plot(outflow.FWM~MonCY.date,TPload.mon.sum2,type="l")
+lines(outflow.FWM.ma~MonCY.date,TPload.mon.sum2,lty=2)
+
+subset(TPload.mon.sum,month==4)
+
 CurWY=WY(Sys.Date())
 cols=rev(adjustcolor(wesanderson::wes_palette("Zissou1",3,"continuous"),0.5))
 # png(filename=paste0(plot.path,"LakeO_TPcumLoad.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
@@ -847,10 +400,8 @@ axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
 axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
 mtext(side=3,"Outflow",font=2)
 mtext(side=1,outer=T,"Day of Water Year",line=0.75)
+dev.off()
 
-```
-
-```{r  monthlyCumTNLoad,echo=FALSE,fig.width=6.5,fig.height=4.5,fig.align='center',fig.cap="Monthly cumulative total nitrogen load (TN) for lake inflow (left) and outflow (right) for the last three water years. Current calculation only uses grab samples at monitoring locations to estimate nutrient concentrations."}
 # png(filename=paste0(plot.path,"LakeO_TNcumLoad.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
 par(family="serif",mar=c(1,2,0.25,0.75),oma=c(2,2,0.75,0.1));
 layout(matrix(1:2,1,2))
@@ -885,9 +436,8 @@ axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
 axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
 mtext(side=3,"Outflow",font=2)
 mtext(side=1,outer=T,"Day of Water Year",line=0.75)
-```
+dev.off()
 
-```{r  monthlyCumQ,echo=FALSE,fig.width=6.5,fig.height=4.5,fig.align='center',fig.cap="Monthly cumulative discharge for lake inflow (left) and outflow (right) for the last three water years."}
 # png(filename=paste0(plot.path,"LakeO_QcumLoad.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
 par(family="serif",mar=c(1,2,0.25,0.75),oma=c(2,2,0.75,0.1));
 layout(matrix(1:2,1,2))
@@ -922,12 +472,10 @@ axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
 axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
 mtext(side=3,"Outflow",font=2)
 mtext(side=1,outer=T,"Day of Water Year",line=0.75)
-
-```
-
+dev.off()
 
 
-```{r  monthlyTPFWM,echo=FALSE,fig.width=6.5,fig.height=4.5,fig.align='center',fig.cap="Monthly and 12-month moving average total phosphorus (TP) flow-weighted mean (FWM) concentration for lake inflow (left) and outflow (right) for the last three water years."}
+
 CurWY=WY(Sys.Date())
 cols=adjustcolor(c("dodgerblue1","indianred1"),0.5)
 # png(filename=paste0(plot.path,"LakeO_TPFWM.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
@@ -958,10 +506,8 @@ axis_fun(1,xmaj,xmin,WY(xmaj),line=-0.5)
 axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
 mtext(side=3,"Outflow",font=2)
 mtext(side=1,outer=T,"Water Year",line=0.75)
-```
+dev.off()
 
-
-```{r  monthlyTNFWM,echo=FALSE,fig.width=6.5,fig.height=4.5,fig.align='center',fig.cap="Monthly and 12-month moving average total nitrogen (TN) flow-weighted mean (FWM) concentration for lake inflow (left) and outflow (right) for the last three water years."}
 # png(filename=paste0(plot.path,"LakeO_TNFWM.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
 par(family="serif",mar=c(1,2,0.25,0.75),oma=c(2,2,0.75,0.1));
 layout(matrix(1:2,1,2))
@@ -990,4 +536,4 @@ axis_fun(1,xmaj,xmin,WY(xmaj),line=-0.5)
 axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
 mtext(side=3,"Outflow",font=2)
 mtext(side=1,outer=T,"Water Year",line=0.75)
-```
+dev.off()
