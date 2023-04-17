@@ -204,13 +204,16 @@ flow.meta$END.DATE=date.fun(flow.meta$END.DATE,form="%d-%B-%Y")
 subset(flow.meta,DBKEY=="WH036")
 DBHYDRO.meta.bysite("FISHCR","FLOW")
 # -------------------------------------------------------------------------
-edate=date.fun(as.character(Sys.Date()))
-sdate=date.fun(paste(format(edate-lubridate::duration(4,"years"),"%Y"),"05-01",sep="-"))
-dates=c(sdate,edate)
+# edate=date.fun(as.character(Sys.Date()))
+# sdate=date.fun(paste(format(edate-lubridate::duration(4,"years"),"%Y"),"05-01",sep="-"))
+# dates=c(sdate,edate)
 
-subset(flow.meta,END.DATE%in%seq(sdate,edate,"1 day"))
-flow.dbkeys
-flow.dbkeys2=subset(flow.dbkeys,DBKEY%in%subset(flow.meta,END.DATE%in%seq(sdate,edate,"1 day"))$DBKEY)
+# subset(flow.meta,END.DATE%in%seq(sdate,edate,"1 day"))
+# flow.dbkeys
+# flow.dbkeys2=subset(flow.dbkeys,DBKEY%in%subset(flow.meta,END.DATE%in%seq(sdate,edate,"1 day"))$DBKEY)
+
+flow.dbkeys2=flow.dbkeys# subset(flow.dbkeys,DBKEY%in%subset(flow.meta,START.DATE<dates[2]&END.DATE>dates[1])$DBKEY)
+
 
 ## Just to check
 merge(ddply(flow.dbkeys,"STRUCT",summarise,N.val=N.obs(STRUCT)),
@@ -325,6 +328,41 @@ out.region=data.frame(STRUCT=c("S2.S351","S3.S354","S352","CU10A","S3","S2","S35
 TPload.mon.sum=merge(TPload.mon.sum,out.region,"STRUCT",all.x=T)
 TNload.mon.sum=merge(TNload.mon.sum,out.region,"STRUCT",all.x=T)
 flow.mon.sum=merge(flow.mon.sum,out.region,"STRUCT",all.x=T)
+
+
+# Annual Load -------------------------------------------------------------
+WY.TPLoad=ddply(TPload.mon.sum,"WY",summarise,inflow.load=sum(kg.to.mt(Inflow),na.rm=T),outflow.load=sum(kg.to.mt(Outflow),na.rm=T))
+WYs2=seq(1981,2022,1)
+WY.TPLoad=subset(WY.TPLoad,WY%in%WYs2)
+WY.TPLoad$atm=35
+
+barplot(t(WY.TPLoad[,c("inflow.load","atm")]))
+
+# png(filename=paste0(plot.path,"LakeO_WY_Inflow.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
+par(family="serif",mar=c(2,2,0.75,0.75),oma=c(2,2,1,0.1),lwd=0.1);
+
+ylim.val=c(0,1249);by.y=250;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+xlim.val=c(1981,2022);by.x=5;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/by.x)
+xlabs=seq(xlim.val[1],xlim.val[2],1)
+
+x=barplot(t(WY.TPLoad[,c("inflow.load","atm")]),space=0,col=NA,border=NA,
+          axes=F,xaxs="i",yaxs="i",ylim=ylim.val,names.arg = rep(NA,nrow(WY.TPLoad)))
+abline(h=ymaj,v=x[seq(1,length(x),by.x)],lty=3,col="grey",lwd=0.5)
+x=barplot(t(WY.TPLoad[,c("inflow.load","atm")]),space=0,col=c(adjustcolor("dodgerblue1",0.5),"white"),border="grey20",
+          axes=F,xaxs="i",yaxs="i",ylim=ylim.val,names.arg = rep(NA,nrow(WY.TPLoad)),add=T)
+abline(h=140,col=adjustcolor("red",0.5),lwd=2)
+axis_fun(1,x[seq(1,length(x),by.x)],x,xmaj,las=0,line=-0.5)
+axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+mtext(side=1,line=2,"Water Year")
+mtext(side=2,line=2.75,"TP Load (tons WY\u207B\u00B9)")
+mtext(side=3,adj=0,"Lake Okeechobee Inflow",font=3)
+legend("topleft",
+       legend=c("Inflow","Atmospheric Deposition"),
+       pch=22,pt.bg=c(adjustcolor("dodgerblue1",0.5),"white"),
+       lty=c(0),lwd=0.1,col="grey20",
+       pt.cex=1.5,ncol=1,cex=0.75,bty="n",y.intersp=1.1,x.intersp=0.75,xpd=NA,xjust=0,yjust=1)
+
+dev.off()
 # -------------------------------------------------------------------------
 library(zoo)
 Qload.mon.sum2=ddply(flow.mon.sum,c("WY","CY","month"),summarise,

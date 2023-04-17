@@ -398,9 +398,9 @@ layout(matrix(1:15,5,3,byrow=T))
 par(family="serif",mar=c(1,1,0.25,0.5),oma=c(2,3,1,0.1),xpd=F);
 xlim.val=c(sdate,edate);xmaj=seq(xlim.val[1],xlim.val[2],"6 months");xmin=seq(xlim.val[1],xlim.val[2],"1 months")
 
-ylim.val=c(0,600);by.y=200;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+ylim.val=c(1,600);ymaj=log.scale.fun(ylim.val,"major");ymin=log.scale.fun(ylim.val,"minor");# by.y=200;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
 for(i in 1:3){
-  plot(mean.TP~date.monCY,dat.xtab.month.region,ylim=ylim.val,xlim=xlim.val,ann=F,axes=F,type="n")  
+  plot(mean.TP~date.monCY,dat.xtab.month.region,ylim=ylim.val,xlim=xlim.val,ann=F,axes=F,type="n",log="y")  
   abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
   with(subset(dat.xtab.month.region,zone==zone.vals[i]),pt_line_error(date.monCY,mean.TP,SE.TP,2,cols[i],1,21,cols[i],length=0.02,pt.lwd=0.01))
   #with(subset(dat.xtab.month.region,zone==zone.vals[i]),pt_line(date.monCY,mean.TP,2,cols[i],1,21,cols[i]))
@@ -417,7 +417,7 @@ for(i in 1:3){
 }
 # ylim.val=c(0,600);by.y=200;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
 for(i in 1:3){
-  plot(mean.TP~date.monCY,dat.xtab.month.region,ylim=ylim.val,xlim=xlim.val,ann=F,axes=F,type="n")  
+  plot(mean.TP~date.monCY,dat.xtab.month.region,ylim=ylim.val,xlim=xlim.val,ann=F,axes=F,type="n",log="y")  
   abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
   with(subset(dat.xtab.month.region,zone==zone.vals[i]),pt_line_error(date.monCY,mean.SRP,SE.SRP,2,cols[i],1,21,cols[i],length=0.02,pt.lwd=0.01))
   #with(subset(dat.xtab.month.region,zone==zone.vals[i]),pt_line(date.monCY,mean.TP,2,cols[i],1,21,cols[i]))
@@ -839,7 +839,7 @@ for(j in 1:length(WY.vals)){
 }
 axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
 axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
-mtext(side=2,line=2.75,"Annual Discharge Volume\n(x1000 Ac-Ft Y\u207B\u00B9)",cex=0.8)
+mtext(side=2,line=2.75,"Cumulative Discharge\nVolume (x1000 Ac-Ft)",cex=0.8)
 mtext(side=3,reg.vals.labs[1],cex=0.8,font=2)
 legend("topleft",
        legend=c(paste0(CurWY," - Incomplete Year"),CurWY-1,CurWY-2),
@@ -865,7 +865,7 @@ for(j in 1:length(WY.vals)){
 }
 axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
 axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
-mtext(side=2,line=2.75,"Annual TP Load\n(tons Y\u207B\u00B9)",cex=0.8)
+mtext(side=2,line=2.75,"Cumulative TP\nLoad (tons)",cex=0.8)
 
 plot(cumOutflow~DOWY,TPload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
 abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
@@ -883,7 +883,7 @@ for(j in 1:length(WY.vals)){
 }
 axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
 axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
-mtext(side=2,line=2.75,"Annual TN Load\n(tons Y\u207B\u00B9)",cex=0.8)
+mtext(side=2,line=2.75,"Cumulative TN\nLoad (tons)",cex=0.8)
 
 plot(cumOutflow~DOWY,TNload.mon.sum2,type="n",xlim=xlim.val,ylim=ylim.val,ann=F,axes=F)
 abline(h=ymaj,v=xmaj,lty=3,col="grey",lwd=0.5)
@@ -1021,7 +1021,7 @@ for(i in 1:3){
   }
   axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
   axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
-  if(i==1){mtext(side=2,line=2.5,"Annual Discharge Volume\n(x1000 Ac-Ft Y\u207B\u00B9)",cex=0.8)}
+  if(i==1){mtext(side=2,line=2.5,"Cumulative Discharge\nVolume (x1000 Ac-Ft)",cex=0.8)}
   mtext(side=3,adj=0,reg.vals.labs[i],cex=0.8)
   if(i==1){
     legend("topleft",
@@ -1042,7 +1042,7 @@ for(i in 1:3){
   }
   axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
   axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
-  if(i==1){mtext(side=2,line=2.5,"Annual TP Load\n(tons Y\u207B\u00B9)",cex=0.8)}
+  if(i==1){mtext(side=2,line=2.5,"Cumulative TP\nLoad (tons)",cex=0.8)}
 }
 
 ylim.val=c(0,1500);by.y=500;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
@@ -1054,7 +1054,7 @@ for(i in 1:3){
   }
   axis_fun(1,xmaj,xmin,xmaj.labs,line=-0.5)
   axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
-  if(i==1){mtext(side=2,line=2.5,"Annual TN Load\n(tons Y\u207B\u00B9)",cex=0.8)}
+  if(i==1){mtext(side=2,line=2.5,"Cumulative TN\nLoad (tons)",cex=0.8)}
   # mtext(side=3,adj=0,reg.vals.labs[i])
 }
 mtext(side=1,outer=T,"Day of Water Year",line=0.75)
