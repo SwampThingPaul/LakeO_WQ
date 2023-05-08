@@ -146,7 +146,7 @@ site.zones.struct=data.frame(SITE=c("S308C","S77","S169","S236","S354","S352","S
 site.zones=rbind(site.zones,site.zones.struct)
 ## WQ Data -------------------------------------------------
 # -------------------------------------------------------------------------
-end.date=date.fun(as.character(Sys.Date()))
+end.date= date.fun(as.character(Sys.Date()))
 end.date1=end.date
 start.date=date.fun(end.date-lubridate::duration(4,"years"))
 dates=c(start.date,end.date)
@@ -216,6 +216,8 @@ Updated: `r paste(format(Sys.Date(),"%B %d, %Y"))`
 
 ***
 <span style="color:red;">**Disclaimer:** The data provided here should be considered preliminary and are subject to change. The data used here is from the South Florida Water Management District and available on DBHYDRO. </span>
+
+*This report is using data from DBHYDRO between `r format(dates[1],"%b %d, %Y")` and `r format(dates[2],"%b %d, %Y")`.*
 
 ***
 ## Spatial
