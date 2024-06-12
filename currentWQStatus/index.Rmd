@@ -90,22 +90,22 @@ st_text <- function(x, ...) {
 # GIS Data ----------------------------------------------------------------
 # lakeO=readOGR(paste0(wd,"/currentWQStatus/GIS"),"LakeO")
 # lakeO=readOGR("./GIS","LakeO")
-lakeO=st_read(paste0(wd,"/currentWQStatus/GIS"),"LakeO")
+# lakeO=st_read(paste0(wd,"/currentWQStatus/GIS"),"LakeO")
 lakeO=st_read("./GIS","LakeO")
 
 # wq.mon=readOGR(paste0(wd,"/currentWQStatus/GIS"),"WQmonitoring")
 # wq.mon=readOGR("./GIS","WQmonitoring")
-wq.mon=st_read(paste0(wd,"/currentWQStatus/GIS"),"WQmonitoring")
+# wq.mon=st_read(paste0(wd,"/currentWQStatus/GIS"),"WQmonitoring")
 wq.mon=st_read("./GIS","WQmonitoring")
 
 # lakeO.lit=readOGR(paste0(wd,"/currentWQStatus/GIS"),"LakeOLittoral")
 # lakeO.lit=readOGR("./GIS","LakeOLittoral")
-lakeO.lit=st_read(paste0(wd,"/currentWQStatus/GIS"),"LakeOLittoral")
+# lakeO.lit=st_read(paste0(wd,"/currentWQStatus/GIS"),"LakeOLittoral")
 lakeO.lit=st_read("./GIS","LakeOLittoral")
 
 # canals=readOGR(paste0(wd,"/currentWQStatus/GIS"),"crop_canals")
 # canals=readOGR("./GIS","crop_canals")
-canals=st_read(paste0(wd,"/currentWQStatus/GIS"),"crop_canals")
+# canals=st_read(paste0(wd,"/currentWQStatus/GIS"),"crop_canals")
 canals=st_read("./GIS","crop_canals")
 
 # WQ Sites  ----------------------------------------------------------------
@@ -639,35 +639,35 @@ flow.dbkeys=rbind(flow.dbkeys.N,flow.dbkeys.E,flow.dbkeys.S,flow.dbkeys.W)
 paste(flow.dbkeys$DBKEY,collapse="/")
 
 ## Check metadata
-DBHYDRO.meta.bysite=function(site,type,cat="SW"){
-  # c("FLOW","STG","GATE")
-  # cat = c("SW","RAIN","ETP")
-  site.vals=paste0("v_site=",site)
-  link=paste0("https://my.sfwmd.gov/dbhydroplsql/show_dbkey_info.show_dbkeys_matched?v_js_flag=Y&v_category=",cat,"&",
-              site.vals,
-              "&v_data_type=",type,
-              "&v_dbkey_list_flag=Y&v_order_by=STATION")
-  rslt.table=rvest::read_html(link)
-  rslt.table=data.frame(rvest::html_table(rslt.table,fill=T)[[5]])
-  rslt.table=rslt.table[,2:ncol(rslt.table)]
-  colnames(rslt.table)=toupper(names(rslt.table))
-  return(rslt.table)
-  
-}
-# DBHYDRO.meta.bysite("S333","FLOW")
-
-DBHYDRO.meta.byDBKEY=function(DBKEY){
-  
-  link=paste0("https://my.sfwmd.gov/dbhydroplsql/show_dbkey_info.show_dbkeys_matched?v_js_flag=Y&v_dbkey=",
-              paste(DBKEY,collapse="/"),
-              "&v_category=SW")
-  rslt.table=rvest::read_html(link)
-  rslt.table=data.frame(rvest::html_table(rslt.table,fill=T)[[5]])
-  rslt.table=rslt.table[,2:ncol(rslt.table)]
-  colnames(rslt.table)=toupper(names(rslt.table))
-  return(rslt.table)
-  
-}
+# DBHYDRO.meta.bysite=function(site,type,cat="SW"){
+#   # c("FLOW","STG","GATE")
+#   # cat = c("SW","RAIN","ETP")
+#   site.vals=paste0("v_site=",site)
+#   link=paste0("https://my.sfwmd.gov/dbhydroplsql/show_dbkey_info.show_dbkeys_matched?v_js_flag=Y&v_category=",cat,"&",
+#               site.vals,
+#               "&v_data_type=",type,
+#               "&v_dbkey_list_flag=Y&v_order_by=STATION")
+#   rslt.table=rvest::read_html(link)
+#   rslt.table=data.frame(rvest::html_table(rslt.table,fill=T)[[5]])
+#   rslt.table=rslt.table[,2:ncol(rslt.table)]
+#   colnames(rslt.table)=toupper(names(rslt.table))
+#   return(rslt.table)
+#   
+# }
+# # DBHYDRO.meta.bysite("S333","FLOW")
+# 
+# DBHYDRO.meta.byDBKEY=function(DBKEY){
+#   
+#   link=paste0("https://my.sfwmd.gov/dbhydroplsql/show_dbkey_info.show_dbkeys_matched?v_js_flag=Y&v_dbkey=",
+#               paste(DBKEY,collapse="/"),
+#               "&v_category=SW")
+#   rslt.table=rvest::read_html(link)
+#   rslt.table=data.frame(rvest::html_table(rslt.table,fill=T)[[5]])
+#   rslt.table=rslt.table[,2:ncol(rslt.table)]
+#   colnames(rslt.table)=toupper(names(rslt.table))
+#   return(rslt.table)
+#   
+# }
 # DBHYDRO.meta.byDBKEY(flow.dbkeys$DBKEY)
 #
 # DBHYDRO.meta.link=paste0("https://my.sfwmd.gov/dbhydroplsql/show_dbkey_info.show_dbkeys_matched?v_js_flag=Y&v_dbkey=",
@@ -709,7 +709,7 @@ flow.dbkeys2=subset(flow.dbkeys,DBKEY%in%subset(flow.meta,START.DATE<dates[2]&EN
 
 flow.dat=data.frame()
 for(i in 1:nrow(flow.dbkeys2)){
-  tmp=DBHYDRO_daily(dates[1],dates[2],flow.dbkeys2$DBKEY[i])
+  tmp=DBHYDRO_daily(dates[1],dates[2],flow.dbkeys2$DBKEY[i],vert_datum = NA)
   tmp$DBKEY=as.character(flow.dbkeys2$DBKEY[i])
   flow.dat=rbind(tmp,flow.dat)
   print(paste(i,": ",flow.dbkeys2$DBKEY[i]))

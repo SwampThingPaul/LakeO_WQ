@@ -31,10 +31,10 @@ GIS.path=paths[4]
 GIS.path.gen="C:/Julian_LaCie/_GISData"
 
 # -------------------------------------------------------------------------
-WYs=seq(1979,2021,1)
+# WYs=seq(1979,2021,1)
 # dates=date.fun(c("1978-05-01","2020-05-01"))
-dates=date.fun(c("1973-05-01","2023-05-01"))
-
+dates=date.fun(c("1973-05-01","2023-04-30"))
+WYs=seq(WY(dates[1]),WY(dates[2]),1)
 
 # Discharge ---------------------------------------------------------------
 flow.dbkeys.E=data.frame(
@@ -71,7 +71,7 @@ flow.dbkeys.S=data.frame(
   STATION=c("C-10","L8.441","S271","C-12","C-12A","C-4A","INDUST","INDUST",
             "S2","S2","S236_P","S3","S3","S351_TEMP",
             "HGS5X","HGS5X","S352_TEMP","S354_TEMP","S4_P","S4_P","S2","S3"),
-  DBKEY=c("15645","15640","65409","15646","15647","15648","15628","02747",
+  DBKEY=c("15645","02855","65409","15646","15647","15648","15628","02747",
           "91508","15021","15644","91513","15018","91509",
           "15068","91510","91511","91514","15630","91608","91473","91599"),
   Priority=c("P1","P1","P2","P1","P1","P1","P1","P2",
@@ -88,6 +88,8 @@ flow.dbkeys.S=data.frame(
            "S2","S2","S236","S3","S3","S351",
            "S352","S352","S352","S354","S4","S4","S2","S3")
 )
+
+## L8.441 (CU10A) DBKEY changed from 15640 to 02855
 
 flow.dbkeys.N=data.frame(
   STRUCT=c("C41","CU5.S281","FISHCR","G207","G208","G33",
@@ -159,6 +161,12 @@ flow.meta=DBHYDRO.meta.byDBKEY(flow.dbkeys$DBKEY)
 flow.meta$START.DATE=date.fun(flow.meta$START.DATE,form="%d-%B-%Y")
 flow.meta$END.DATE=date.fun(flow.meta$END.DATE,form="%d-%B-%Y")
 
+
+merge(flow.dbkeys.E,flow.meta[,c("DBKEY","START.DATE","END.DATE")],"DBKEY",sort=F)
+merge(flow.dbkeys.W,flow.meta[,c("DBKEY","START.DATE","END.DATE")],"DBKEY",sort=F)
+merge(flow.dbkeys.N,flow.meta[,c("DBKEY","START.DATE","END.DATE")],"DBKEY",sort=F)
+merge(flow.dbkeys.S,flow.meta[,c("DBKEY","START.DATE","END.DATE")],"DBKEY",sort=F)
+
 # max(flow.meta$END.DATE)
 # min(flow.meta$END.DATE)
 # subset(flow.meta,END.DATE<date.fun("2023-03-13"))
@@ -215,6 +223,8 @@ WY.Tflow=ddply(flow.mon.sum,"WY",summarise,inflow.Q.cfs=sum(Inflow,na.rm=T),outf
 WY.Tflow
 cfs.to.acftd(WY.Tflow$inflow.Q.cfs)
 cfs.to.acftd(WY.Tflow$outflow.Q.cfs)
+
+ddply(flow.mon.sum,"WY",summarise,inflow.Q=sum(cfs.to.acftd(Inflow),na.rm=T)/1000,outflow.Q=sum(cfs.to.acftd(Outflow),na.rm=T)/1000)
 # Water Quality -----------------------------------------------------------
 wq.sites=ddply(flow.dbkeys2,"WQSite",summarise,N.val=N.obs(ALIAS))
 
@@ -284,6 +294,8 @@ WY.TPLoad=ddply(subset(flow.wq,direct=="Inflow"),c("WY","direct"),summarise,
                 inflow.flow=sum(cfs.to.m3d(fflow.cfs),na.rm=T),
                 inflow.FWM=sum(TPLoad.kg*1e9,na.rm=T)/sum(inflow.flow*1000,na.rm=T))
 # WY.TPLoad=ddply(TPload.mon.sum,"WY",summarise,inflow.load=sum(kg.to.mt(Inflow),na.rm=T),outflow.load=sum(kg.to.mt(Outflow),na.rm=T))
+WY.TPLoad$inflow.TPload.MA=zoo::rollapply(WY.TPLoad$inflow.TPload,5,mean,na.rm=T,align="right",fill=NA)
+
 
 WYs2=seq(1974,2023,1)
 WY.TPLoad=subset(WY.TPLoad,WY%in%WYs2)
@@ -322,6 +334,35 @@ legend("topleft",
 
 dev.off()
 
+# png(filename=paste0(plot.path,"LakeO_WY_Inflow_MA.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
+par(family="serif",mar=c(2,2,0.75,3),oma=c(1,2,1,1),lwd=0.1);
+
+ylim.val=c(0,1200);by.y=300;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+xlim.val=c(1974,2023);by.x=5;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/by.x)
+xlabs=seq(xlim.val[1],xlim.val[2],1)
+
+x=barplot(t(WY.TPLoad[,c("inflow.TPload","atm")]),space=0,col=NA,border=NA,
+          axes=F,xaxs="i",yaxs="i",ylim=ylim.val,names.arg = rep(NA,nrow(WY.TPLoad)))
+abline(h=ymaj,v=x[seq(1,length(x),by.x)],lty=3,col="grey",lwd=0.5)
+x=barplot(t(WY.TPLoad[,c("inflow.TPload","atm")]),space=0,col=c(adjustcolor("dodgerblue1",0.5),"white"),border="grey20",
+          axes=F,xaxs="i",yaxs="i",ylim=ylim.val,names.arg = rep(NA,nrow(WY.TPLoad)),add=T)
+lines(x,WY.TPLoad$inflow.TPload.MA,lty=1,col="black",lwd=2)
+abline(h=140,col=adjustcolor("red",0.5),lwd=2)
+axis_fun(1,x[seq(1,length(x),by.x)],x,xmaj,las=0,line=-0.5)
+axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+
+mtext(side=1,line=1.5,"Water Year")
+mtext(side=2,line=2.75,"TP Load (tons WY\u207B\u00B9)")
+# mtext(side=4,line=2.5,"TP FWM (\u03Bcg L\u207B\u00B9)")
+mtext(side=3,adj=0,"Lake Okeechobee Inflow",font=3)
+legend("topleft",
+       legend=c("Inflow","Atmospheric Deposition","5-WY Inflow Moving Average","TMDL (140 tons)"),
+       pch=c(22,22,NA,NA),pt.bg=c(adjustcolor("dodgerblue1",0.5),"white",NA,NA),
+       lty=c(0,0,1,1),lwd=c(rep(0.1,2),1,1),col=c("grey20","grey20","black","red"),
+       pt.cex=1.5,ncol=1,cex=0.75,bty="n",y.intersp=1.1,x.intersp=0.75,xpd=NA,xjust=0,yjust=1)
+
+dev.off()
+
 # png(filename=paste0(plot.path,"LakeO_WY_Inflow_v2.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
 par(family="serif",mar=c(2,2,0.75,0.5),oma=c(1,2,1,0.5),lwd=0.1);
 
@@ -354,6 +395,129 @@ legend("topleft",
        pt.cex=1.5,ncol=2,cex=0.75,bty="n",y.intersp=1.1,x.intersp=0.75,xpd=NA,xjust=0,yjust=1)
 
 dev.off()
+
+WY.TPLoad2=subset(WY.TPLoad,WY%in%seq(2013,2023,1))
+
+# png(filename=paste0(plot.path,"LakeO_WY_Inflow_10WYs.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
+par(family="serif",mar=c(2,2,0.75,0.5),oma=c(1,2,1,0.5),lwd=0.1);
+
+ylim.val=c(0,1200);by.y=300;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+xlim.val=c(2013,2023);by.x=1;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/by.x)
+xlabs=seq(xlim.val[1],xlim.val[2],1)
+
+x=barplot(t(WY.TPLoad2[,c("inflow.TPload","atm")]),space=0,col=NA,border=NA,
+          axes=F,xaxs="i",yaxs="i",ylim=ylim.val,names.arg = rep(NA,nrow(WY.TPLoad2)))
+abline(h=ymaj,v=x[seq(1,length(x),by.x)],lty=3,col="grey",lwd=0.5)
+x=barplot(t(WY.TPLoad2[,c("inflow.TPload","atm")]),space=0,col=c(adjustcolor("dodgerblue1",0.5),"white"),border="grey20",
+          axes=F,xaxs="i",yaxs="i",ylim=ylim.val,names.arg = rep(NA,nrow(WY.TPLoad2)),add=T)
+lines(x,WY.TPLoad2$inflow.TPload.MA,lty=1,col="black",lwd=2)
+abline(h=140,col=adjustcolor("red",0.5),lwd=2)
+axis_fun(1,x[seq(1,length(x),by.x)],x,xmaj,las=0,line=-0.5)
+axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+
+mtext(side=1,line=1.5,"Water Year")
+mtext(side=2,line=2.75,"TP Load (tons WY\u207B\u00B9)")
+# mtext(side=4,line=2.5,"TP FWM (\u03Bcg L\u207B\u00B9)")
+mtext(side=3,adj=0,"Lake Okeechobee Inflow",font=3)
+legend("topleft",
+       legend=c("Inflow","Atmospheric Deposition","5-WY Inflow Moving Average","TMDL (140 tons)"),
+       pch=c(22,22,NA,NA),pt.bg=c(adjustcolor("dodgerblue1",0.5),"white",NA,NA),
+       lty=c(0,0,1,1),lwd=c(rep(0.1,2),1,1),col=c("grey20","grey20","black","red"),
+       pt.cex=1.5,ncol=1,cex=0.75,bty="n",y.intersp=1.1,x.intersp=0.75,xpd=NA,xjust=0,yjust=1)
+
+dev.off()
+
+
+
+## S154+S154C --------------------------------------------------------------
+
+WY.S154s.TPLoad=ddply(subset(flow.wq,direct=="Inflow"&STRUCT%in%c("S154","S154C")),c("WY","STRUCT","direct"),summarise,
+                inflow.TPload=sum(kg.to.mt(TPLoad.kg),na.rm=T),
+                inflow.flow=sum(cfs.to.m3d(fflow.cfs),na.rm=T),
+                inflow.FWM=sum(TPLoad.kg*1e9,na.rm=T)/sum(inflow.flow*1000,na.rm=T))
+
+WY.S154s.TPLoad.agg=ddply(subset(flow.wq,direct=="Inflow"&STRUCT%in%c("S154","S154C")),c("WY","direct"),summarise,
+                      inflow.TPload=sum(kg.to.mt(TPLoad.kg),na.rm=T),
+                      inflow.flow=sum(cfs.to.m3d(fflow.cfs),na.rm=T),
+                      inflow.FWM=sum(TPLoad.kg*1e9,na.rm=T)/sum(inflow.flow*1000,na.rm=T))
+
+dcast(WY.S154s.TPLoad,WY~STRUCT,value.var = "inflow.flow",sum)
+
+WY.S154s.TPLoad.xtab=dcast(WY.S154s.TPLoad,WY~STRUCT,value.var = "inflow.TPload",sum)
+WY.S154s.TPLoad.xtab$S154s=rowSums(WY.S154s.TPLoad.xtab[,c("S154","S154C")])
+
+
+# png(filename=paste0(plot.path,"LakeO_WY_S154s.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
+par(family="serif",mar=c(2,2,0.75,3.5),oma=c(1,2,1,0.5),lwd=0.1);
+
+ylim.val=c(0,160);by.y=20;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+xlim.val=c(1974,2023);by.x=5;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/by.x)
+xlabs=seq(xlim.val[1],xlim.val[2],1)
+
+x=barplot(t(WY.S154s.TPLoad.xtab[,c("S154","S154C")]),space=0,col=NA,border=NA,
+          axes=F,xaxs="i",yaxs="i",ylim=ylim.val,names.arg = rep(NA,nrow(WY.TPLoad)))
+abline(h=ymaj,v=x[seq(1,length(x),by.x)],lty=3,col="grey",lwd=0.5)
+x=barplot(t(WY.S154s.TPLoad.xtab[,c("S154","S154C")]),space=0,col=c(adjustcolor("dodgerblue1",0.5),"grey"),border="grey20",
+          axes=F,xaxs="i",yaxs="i",ylim=ylim.val,names.arg = rep(NA,nrow(WY.TPLoad)),add=T)
+axis_fun(1,x[seq(1,length(x),by.x)],x,xmaj,las=0,line=-0.5)
+axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+
+ylim.val=c(0,1500);by.y=250;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+par(new=T);x=barplot(WY.S154s.TPLoad.agg$inflow.FWM,col=NA,border=NA,axes=F,xaxs="i",yaxs="i",ylim=ylim.val,names.arg = rep(NA,nrow(WY.TPLoad)))
+pt_line(x,WY.S154s.TPLoad.agg$inflow.FWM,1,"black",1,19,"black")
+axis_fun(4,ymaj,ymin,ymaj)
+
+mtext(side=1,line=1.5,"Water Year")
+mtext(side=2,line=2.75,"TP Load (tons WY\u207B\u00B9)")
+mtext(side=4,line=2.5,"TP FWM (\u03Bcg L\u207B\u00B9)")
+mtext(side=3,adj=0,"S154 and S154C",font=3)
+legend("topright",
+       legend=c("S154","S154C","Aggregated FWM"),
+       pch=c(22,22,21),pt.bg=c(adjustcolor("dodgerblue1",0.5),"grey","black"),
+       lty=c(0,0,0),lwd=c(rep(0.1,3)),col=c("grey20","grey20","black"),
+       pt.cex=1.5,ncol=1,cex=0.75,bty="n",y.intersp=1.1,x.intersp=0.75,xpd=NA,xjust=0,yjust=1)
+
+dev.off()
+
+
+WY.S154s.TPLoad.xtab2=subset(WY.S154s.TPLoad.xtab,WY%in%seq(2013,2023,1))
+WY.S154s.TPLoad.agg2=subset(WY.S154s.TPLoad.agg,WY%in%seq(2013,2023,1))
+
+
+# png(filename=paste0(plot.path,"LakeO_WY_S154s_10WYs.png"),width=6.5,height=4,units="in",res=200,type="windows",bg="white")
+par(family="serif",mar=c(2,2,0.75,3.5),oma=c(1,2,1,0.5),lwd=0.1);
+
+ylim.val=c(0,60);by.y=20;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+xlim.val=c(2013,2023);by.x=1;xmaj=seq(xlim.val[1],xlim.val[2],by.x);xmin=seq(xlim.val[1],xlim.val[2],by.x/by.x)
+xlabs=seq(xlim.val[1],xlim.val[2],1)
+
+x=barplot(t(WY.S154s.TPLoad.xtab2[,c("S154","S154C")]),space=0,col=NA,border=NA,
+          axes=F,xaxs="i",yaxs="i",ylim=ylim.val,names.arg = rep(NA,nrow(WY.S154s.TPLoad.xtab2)))
+abline(h=ymaj,v=x[seq(1,length(x),by.x)],lty=3,col="grey",lwd=0.5)
+x=barplot(t(WY.S154s.TPLoad.xtab2[,c("S154","S154C")]),space=0,col=c(adjustcolor("dodgerblue1",0.5),"grey"),border="grey20",
+          axes=F,xaxs="i",yaxs="i",ylim=ylim.val,names.arg = rep(NA,nrow(WY.S154s.TPLoad.xtab2)),add=T)
+axis_fun(1,x[seq(1,length(x),by.x)],x,xmaj,las=0,line=-0.5)
+axis_fun(2,ymaj,ymin,ymaj);box(lwd=1)
+
+ylim.val=c(0,1000);by.y=200;ymaj=seq(ylim.val[1],ylim.val[2],by.y);ymin=seq(ylim.val[1],ylim.val[2],by.y/2)
+par(new=T);x=barplot(WY.S154s.TPLoad.agg2$inflow.FWM,col=NA,border=NA,axes=F,xaxs="i",yaxs="i",ylim=ylim.val,names.arg = rep(NA,nrow(WY.S154s.TPLoad.agg2)))
+pt_line(x,WY.S154s.TPLoad.agg2$inflow.FWM,1,"black",1,19,"black",cex=1.25)
+axis_fun(4,ymaj,ymin,ymaj)
+
+mtext(side=1,line=1.5,"Water Year")
+mtext(side=2,line=2.75,"TP Load (tons WY\u207B\u00B9)")
+mtext(side=4,line=2.5,"TP FWM (\u03Bcg L\u207B\u00B9)")
+mtext(side=3,adj=0,"S154 and S154C",font=3)
+legend("topright",
+       legend=c("S154","S154C","Aggregated FWM"),
+       pch=c(22,22,21),pt.bg=c(adjustcolor("dodgerblue1",0.5),"grey","black"),
+       lty=c(0,0,0),lwd=c(rep(0.1,3)),col=c("grey20","grey20","black"),
+       pt.cex=1.5,ncol=1,cex=0.75,bty="n",y.intersp=1.1,x.intersp=0.75,xpd=NA,xjust=0,yjust=1)
+
+dev.off()
+
+
+
 
 # In-Lake -----------------------------------------------------------------
 wq.param=data.frame(Test.Number=c(16,18,20,21,23,25,80,89,100),
